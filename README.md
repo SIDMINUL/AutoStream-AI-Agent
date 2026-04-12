@@ -52,13 +52,9 @@ Go to **[console.groq.com](https://console.groq.com)** → Sign up → API Keys 
 
 ### 3. Configure your API key
 
-```bash
-cp .env.example .env
-```
-
 Open `.env` and add:
 ```
-GROQ_API_KEY=your_groq_api_key_here
+GROQ_API_KEY= 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
 ```
 
 ### 4. Run the CLI agent
