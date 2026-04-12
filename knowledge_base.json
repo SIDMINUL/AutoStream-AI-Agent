@@ -1,0 +1,65 @@
+{
+  "product": {
+    "name": "AutoStream",
+    "tagline": "Automated video editing tools for content creators",
+    "description": "AutoStream helps content creators automate their video editing workflow using AI — saving hours of manual editing time every week."
+  },
+  "plans": {
+    "basic": {
+      "name": "Basic Plan",
+      "price": "$29/month",
+      "price_numeric": 29,
+      "videos_per_month": 10,
+      "resolution": "720p",
+      "features": [
+        "10 videos per month",
+        "720p resolution output",
+        "Automated cuts and transitions",
+        "Basic color correction",
+        "Standard support during business hours"
+      ]
+    },
+    "pro": {
+      "name": "Pro Plan",
+      "price": "$79/month",
+      "price_numeric": 79,
+      "videos_per_month": "unlimited",
+      "resolution": "4K",
+      "features": [
+        "Unlimited videos per month",
+        "4K resolution output",
+        "AI-powered captions and subtitles",
+        "Advanced color grading",
+        "Priority rendering",
+        "Custom branding and watermarks",
+        "24/7 dedicated support"
+      ]
+    }
+  },
+  "policies": {
+    "refund": {
+      "policy": "No refunds after 7 days from the date of purchase.",
+      "details": "Refunds are only available within the first 7 days. After that period, all charges are final."
+    },
+    "support": {
+      "basic_plan": "Standard support during business hours (Mon-Fri, 9am-6pm EST).",
+      "pro_plan": "24/7 priority support is available exclusively on the Pro plan."
+    },
+    "cancellation": "You may cancel your subscription at any time. Access continues until the end of your billing period.",
+    "free_trial": "No free trial currently offered; refund window within first 7 days acts as a risk-free period."
+  },
+  "faq": [
+    {
+      "question": "What platforms does AutoStream support?",
+      "answer": "AutoStream exports in formats compatible with YouTube, Instagram, Twitter/X, and LinkedIn."
+    },
+    {
+      "question": "Can I upgrade from Basic to Pro?",
+      "answer": "Yes, you can upgrade at any time. You'll be charged the Pro rate prorated for the rest of your billing cycle."
+    },
+    {
+      "question": "Is there a free trial?",
+      "answer": "We do not currently offer a free trial, but you can get a refund within the first 7 days if you're not satisfied."
+    }
+  ]
+}
