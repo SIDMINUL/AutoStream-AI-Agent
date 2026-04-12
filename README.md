@@ -39,7 +39,7 @@ autostream-agent/
 ### 1. Clone & install
 
 ```bash
-git clone https://github.com/your-username/autostream-agent.git
+git clone https://github.com/SIDMINUL/autostream-agent.git
 cd autostream-agent
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
