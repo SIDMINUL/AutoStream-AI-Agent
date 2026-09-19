@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
+from db import create_lead
 from typing_extensions import TypedDict
 
 load_dotenv()
@@ -32,12 +33,13 @@ KB_TEXT: str = json.dumps(KNOWLEDGE_BASE, indent=2)
 
 # ── Mock Lead Capture Tool ────────────────────────────────────────────────────
 
-def mock_lead_capture(name: str, email: str, platform: str) -> str:
+def mock_lead_capture(name: str, email: str, platform: str, session_id: str | None = None) -> str:
     """
     Mock API function that simulates saving a lead to a CRM.
     In production this would POST to a real CRM endpoint.
     """
-    msg = f"Lead captured successfully: {name}, {email}, {platform}"
+    lead_id = create_lead(session_id or "cli-session", name, email, platform)
+    msg = f"Lead captured successfully: {name}, {email}, {platform} (lead_id={lead_id})"
     print(f"\n{'='*55}")
     print(f"  🎯  TOOL CALLED: mock_lead_capture()")
     print(f"      name     = {name}")
@@ -223,7 +225,7 @@ def collect_lead_info(state: AgentState) -> AgentState:
 
     if not missing:
         # ── All collected: fire the tool ──────────────────────────────────────
-        tool_result = mock_lead_capture(name, email, platform)
+        tool_result = mock_lead_capture(name, email, platform, state.get("_session_id"))
 
         confirmation_msgs = _to_lc(state)
         confirmation_msgs.insert(
@@ -349,11 +351,12 @@ def build_graph():
 AGENT = build_graph()
 
 
-def process_turn(user_input: str, state: AgentState) -> tuple[str, AgentState]:
+def process_turn(user_input: str, state: AgentState, session_id: str | None = None) -> tuple[str, AgentState]:
     """
     Add user_input to state, invoke the graph, and return
     (assistant_reply, updated_state).
     """
+    state["_session_id"] = session_id
     state["messages"].append({"role": "user", "content": user_input})
     state = AGENT.invoke(state)
 
