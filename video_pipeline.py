@@ -179,8 +179,13 @@ def render(source: str, output: str, platform: str, start: float, end: float, sr
         "-vf", ",".join(filters),
         "-map", "0:v:0",
         "-map", "0:a:0?",
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-        "-c:a", "aac", "-b:a", "128k",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+        # Render has a 512 MB memory limit. Keep FFmpeg single-threaded so
+        # x264/filter worker buffers do not multiply memory usage.
+        "-threads", "1",
+        "-filter_threads", "1",
+        "-filter_complex_threads", "1",
+        "-c:a", "aac", "-b:a", "96k",
         "-shortest",
         "-avoid_negative_ts", "make_zero",
         "-movflags", "+faststart", output
@@ -197,6 +202,9 @@ def process_video(source: str, output: str, platform: str, work_dir: str):
 
     print(f"[pipeline] extracting audio for {duration:.2f}s video", flush=True)
     _extract_audio(source, audio)
+
+    # Very short clips are rendered as-is. We still transcribe them when
+    # possible so captions are preserved, but avoid the LLM highlight step.
     print("[pipeline] sending audio to Groq Whisper", flush=True)
     transcript, segments = _transcribe(audio)
     print(f"[pipeline] Whisper complete: {len(segments)} segments", flush=True)
