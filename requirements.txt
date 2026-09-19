@@ -16,3 +16,5 @@ httpx>=0.27.0
 
 # Production static web serving
 
+
+python-multipart>=0.0.9
