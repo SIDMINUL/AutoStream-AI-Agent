@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoStream — AI Video Automation</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="nav">
+  <div class="brand">AutoStream<span>AI</span></div>
+  <a href="/admin" class="nav-link">Admin Dashboard</a>
+</header>
+
+<main class="hero">
+  <section class="hero-copy">
+    <p class="eyebrow">AI-POWERED VIDEO AUTOMATION</p>
+    <h1>Turn your content into finished videos, faster.</h1>
+    <p class="sub">AutoStream helps creators automate editing, captions, color, and publishing workflows with AI.</p>
+    <div class="plans">
+      <article><h3>Basic</h3><strong>$29/mo</strong><p>10 videos · 720p · automated cuts</p></article>
+      <article class="featured"><h3>Pro</h3><strong>$79/mo</strong><p>Unlimited · 4K · captions · priority rendering</p></article>
+    </div>
+  </section>
+
+  <section class="chat-card">
+    <div class="chat-head"><div class="status-dot"></div><div><strong>Nova</strong><small>AutoStream AI Sales Agent</small></div></div>
+    <div id="messages" class="messages">
+      <div class="bubble bot">Hi! I'm Nova. Ask me about AutoStream, pricing, features, or getting started.</div>
+    </div>
+    <form id="chat-form" class="chat-form">
+      <input id="message" autocomplete="off" placeholder="Ask Nova anything..." maxlength="2000" required>
+      <button>Send</button>
+    </form>
+    <div id="meta" class="chat-meta">AI sales assistant · Knowledge-grounded answers</div>
+  </section>
+</main>
+
+<section class="feature-strip">
+  <div><b>AI Sales Agent</b><span>Intent detection and guided conversations</span></div>
+  <div><b>Lead Qualification</b><span>Capture name, email and creator platform</span></div>
+  <div><b>Sales Pipeline</b><span>Track leads from new to converted</span></div>
+</section>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
