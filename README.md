@@ -1,8 +1,8 @@
-# 🤖 AutoStream AI Sales Agent
+# AutoStream AI Sales Platform
 
-> A production-oriented AI sales assistant built with **LangGraph, LangChain, Groq, FastAPI, and a knowledge-base-driven response layer**.
+> A full-stack AI sales automation platform powered by **LangGraph, LangChain, Groq, FastAPI, SQLite, and a customer/admin web interface**.
 
-The agent can classify customer intent, answer product questions using a local knowledge base, identify high purchase intent, and collect lead information across multiple conversation turns.
+AutoStream has evolved from a conversational AI demo into an end-to-end sales platform: customers interact with an AI sales agent, high-intent conversations are qualified into leads, leads are persisted, and an operations dashboard tracks the sales pipeline.
 
 ## ✨ Features
 
@@ -10,7 +10,9 @@ The agent can classify customer intent, answer product questions using a local k
 - 📚 **Knowledge-base grounding** — product answers are constrained to the supplied AutoStream data
 - 🔄 **LangGraph workflow** — explicit stateful routing between classification, response, and lead-collection nodes
 - 🎯 **Lead qualification** — collects name, email, and creator platform one field at a time
-- 🛠️ **Mock CRM tool** — demonstrates how a qualified lead can trigger a CRM action
+- 🛠️ **Lead management** — qualified leads are persisted in SQLite and exposed through REST APIs
+- 📊 **Sales dashboard** — pipeline, conversion, platform and lead analytics
+- 🌐 **Customer web app** — landing page and AI sales experience in the same deployment
 - 💬 **Groq LLM** — fast conversational response generation with Llama 3.1 8B Instant
 - 🌐 **FastAPI REST API** — deployable `/chat` and `/health` endpoints
 - 🔗 **Session-aware API** — conversation state can be continued using a `session_id`
@@ -104,11 +106,19 @@ After all required fields are available, the project calls `mock_lead_capture()`
 ```text
 AutoStream-AI-Agent/
 ├── agent.py              # LangGraph agent and business logic
-├── api.py                # FastAPI application
+├── api.py                # FastAPI, web routes and REST endpoints
+├── db.py                 # Persistent sessions, leads and analytics
 ├── main.py               # Interactive CLI application
 ├── knowledge_base.json   # Product/business knowledge
 ├── requirements.txt      # Python dependencies
 ├── render.yaml           # Render deployment configuration
+├── static/               # Customer app and admin dashboard
+│   ├── index.html
+│   ├── app.js
+│   ├── styles.css
+│   ├── admin.html
+│   ├── admin.js
+│   └── admin.css
 ├── .gitignore
 └── README.md
 ```
@@ -175,6 +185,26 @@ http://localhost:8000/docs
 ```
 
 ## 🔌 API
+
+### `GET /`
+
+Customer-facing AutoStream platform.
+
+### `GET /admin`
+
+Sales operations dashboard.
+
+### `GET /api/leads`
+
+Returns captured leads, optionally filtered by status.
+
+### `PATCH /api/leads/{lead_id}`
+
+Updates a lead's pipeline status.
+
+### `GET /api/analytics`
+
+Returns lead, conversion and platform analytics.
 
 ### `GET /health`
 
@@ -243,9 +273,9 @@ After connecting the repository to Render, add your `GROQ_API_KEY` and deploy th
 - In-memory sessions are lost when the service restarts or scales to multiple instances.
 - LLM output quality depends on the configured Groq model and prompt.
 
-## 🎯 Why This Project Matters
+## Why This Project Matters
 
-AutoStream demonstrates practical **AI agent engineering**, not just LLM prompting. It combines state management, deterministic routing, business rules, grounded generation, structured API design, and a clear integration point for lead capture.
+AutoStream demonstrates practical **AI agent engineering and full-stack product development**, not just LLM prompting. It combines state management, deterministic routing, grounded generation, lead qualification, persistent data, REST APIs, customer UI, sales operations, analytics, and cloud deployment.
 
 ## 👨‍💻 Author
 
