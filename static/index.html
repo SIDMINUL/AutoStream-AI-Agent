@@ -1,12 +1,110 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AutoStream — AI Video Automation</title><link rel="icon" type="image/png+xml" href="/static/AutoStreamAI logo.png
-"><link rel="stylesheet" href="/static/styles.css"></head><body>
-<header class="nav"><a class="brand" href="/" aria-label="AutoStream home"><img src="/static/AutoStreamAI logo.png" alt="AutoStream logo"><span>AutoStream</span><b>AI</b></a><nav><a href="/?view=workflow" target="_blank" rel="noopener">Create</a><a href="/?view=features" target="_blank" rel="noopener">Features</a><a href="/admin">Admin</a></nav></header>
-<main><section class="hero"><div class="hero-copy"><p class="eyebrow">AI VIDEO AUTOMATION PLATFORM</p><h1>Upload once.<br><span>Publish everywhere.</span></h1><p class="sub">Turn raw creator footage into platform-ready videos with AI transcription, highlight selection, timed captions, formatting, and export.</p><a class="primary" href="/?view=workflow" target="_blank" rel="noopener">Create a project</a><div class="trust"><span>Whisper transcription</span><span>AI highlights</span><span>Auto captions</span></div></div>
-<div class="hero-preview"><div class="preview-top"><span class="live-dot"></span> Nova AI pipeline <b>LIVE</b></div><div class="pipeline"><div class="step done"><i>01</i><span>Upload video</span><small>Ready</small></div><div class="step done"><i>02</i><span>Transcribe speech</span><small>Whisper</small></div><div class="step"><i>03</i><span>Find highlight</span><small>GPT-OSS</small></div><div class="step"><i>04</i><span>Generate captions</span><small>Timed</small></div><div class="step"><i>05</i><span>Format & export</span><small>FFmpeg</small></div></div></div></section>
-<section id="workflow" class="workspace"><div class="section-head"><div><p class="eyebrow">CREATOR WORKSPACE</p><h2>Build your next video</h2></div><span id="project-status">No project yet</span></div>
-<div class="workspace-grid"><form id="project-form" class="panel"><h3>1. Project setup</h3><label>Project name<input id="project-name" required placeholder="My podcast clip"></label><label>Publish platform<select id="platform"><option>YouTube</option><option>Instagram</option><option>TikTok</option><option>LinkedIn</option><option>Twitter/X</option></select></label><label>Editing style<select id="style"><option>Auto highlights</option><option>Short-form viral</option><option>Clean professional</option><option>Podcast clips</option></select></label><button class="primary full" type="submit">Create project</button></form>
-<div class="panel"><h3>2. Upload source video</h3><label class="drop"><input id="video-file" type="file" accept="video/*"><strong>Choose a video</strong><span>MP4, MOV, MKV, WEBM, AVI, M4V</span></label><button id="upload-btn" class="secondary full" disabled>Upload video</button><div id="file-info" class="file-info">No video selected</div></div>
-<div class="panel pipeline-panel"><h3>3. AI processing</h3><div class="progress"><i id="progress-bar"></i></div><div class="progress-meta"><span id="progress-label">Waiting for upload</span><b id="progress-value">0%</b></div><button id="process-btn" class="primary full" disabled>Run AI pipeline</button><div id="output" class="output"></div></div></div>
-<div class="recent panel"><div class="section-head compact"><h3>Recent projects</h3><button id="refresh-projects">Refresh</button></div><div id="projects-list" class="projects-list"></div></div></section>
-<section id="features" class="features"><div><b>01</b><h3>AI highlight detection</h3><p>Whisper timestamps speech, then GPT-OSS selects a compelling short-form moment.</p></div><div><b>02</b><h3>Timed captions</h3><p>Generate subtitles from the real transcript and burn them into the exported clip.</p></div><div><b>03</b><h3>Platform formatting</h3><p>Render a finished MP4 for YouTube, Instagram, TikTok, LinkedIn, or Twitter/X.</p></div><div><b>04</b><h3>AI sales agent</h3><p>Nova answers product questions and captures qualified creator leads.</p></div></section>
-<section class="chat-section"><div><p class="eyebrow">MEET NOVA</p><h2>Your AI copilot for AutoStream</h2><p>Ask about plans, features, or getting started.</p></div><div class="chat-card"><div class="chat-head"><div class="status-dot"></div><div><strong>Nova</strong><small>AutoStream AI Sales Agent</small></div></div><div id="messages" class="messages"><div class="bubble bot">Hi! I'm Nova. Ask me about AutoStream, pricing, features, or getting started.</div></div><form id="chat-form" class="chat-form"><input id="message" autocomplete="off" placeholder="Ask Nova anything..." maxlength="2000" required><button>Send</button></form><div id="meta" class="chat-meta">Knowledge-grounded AI assistant</div></div></section></main><script src="/static/app.js"></script><script>const view=new URLSearchParams(location.search).get("view");if(view){requestAnimationFrame(()=>document.getElementById(view)?.scrollIntoView({behavior:"smooth",block:"start"}))}</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoStreamAI — AI Video Creation Platform</title>
+<link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="/" aria-label="AutoStreamAI home">
+    <img src="/static/AutoStreamAI logo.png" alt="AutoStreamAI logo" onerror="this.src='/static/logo.svg'">
+    <span>AutoStream<span class="brand-ai">AI</span></span>
+    <small>Create. Edit. Grow. With AI.</small>
+  </a>
+  <nav class="main-nav">
+    <a class="active" href="/">Home</a>
+    <a href="/?view=features" target="_blank" rel="noopener">Features</a>
+    <a href="/?view=workflow" target="_blank" rel="noopener">Create</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#chat">AI Assistant</a>
+  </nav>
+  <div class="nav-actions">
+    <a class="admin-link" href="/admin">Admin</a>
+    <a class="primary nav-cta" href="/?view=workflow" target="_blank" rel="noopener">Get Started</a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="hero-copy">
+    <div class="badge">AI-Powered Video Creation for Creators</div>
+    <h1>Turn Your Ideas Into<br><span>Viral Content</span> with AI</h1>
+    <p class="sub">AutoStreamAI helps creators automatically edit, caption, and format videos for YouTube, Instagram, TikTok, LinkedIn and more. Save time. Grow faster. Focus on what you do best — create.</p>
+    <div class="hero-actions">
+      <a class="primary large" href="/?view=workflow" target="_blank" rel="noopener">Start Creating <b>→</b></a>
+      <a class="secondary large" href="#how-it-works">Watch Demo <b>▷</b></a>
+    </div>
+    <div class="platform-row">
+      <span class="platform youtube">▶</span><span class="platform instagram">◎</span><span class="platform tiktok">♪</span><span class="platform linkedin">in</span><span class="platform x">X</span>
+    </div>
+    <div class="stats">
+      <div><strong>5x</strong><span>Faster Editing</span></div><div><strong>100+</strong><span>Creators Trust Us</span></div><div><strong>AI</strong><span>Powered</span></div><div><strong>24/7</strong><span>AI Sales Assistant</span></div>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="glow"></div>
+    <div class="editor-window">
+      <div class="editor-toolbar"><span class="window-dot"></span><span class="window-dot"></span><span class="window-dot"></span><b>AutoStreamAI Studio</b><span class="toolbar-status">● AI ready</span></div>
+      <div class="editor-body">
+        <div class="video-canvas">
+          <div class="play">▶</div>
+          <div class="video-caption">Good content<br><strong>changes everything.</strong></div>
+          <div class="timeline"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="wave"></div>
+        </div>
+        <div class="processing">
+          <h3>AI Processing</h3>
+          <div class="ai-step done"><i>↥</i><span>Upload Video</span><b>✓</b></div>
+          <div class="ai-step done"><i>◖</i><span>Transcribe Audio</span><b>✓</b></div>
+          <div class="ai-step done"><i>✦</i><span>Detect Highlights</span><b>✓</b></div>
+          <div class="ai-step done"><i>CC</i><span>Generate Captions</span><b>✓</b></div>
+          <div class="ai-step"><i>↗</i><span>Format for Platform</span><b>✓</b></div>
+          <div class="ai-step"><i>⇧</i><span>Export Video</span><b class="pending">○</b></div>
+          <div class="processing-bar"><i></i></div><small>Processing... <b>80%</b></small>
+        </div>
+      </div>
+      <div class="format-row"><span>YouTube<br><b>16:9</b></span><span>Instagram<br><b>9:16</b></span><span>TikTok<br><b>9:16</b></span><span>LinkedIn<br><b>16:9</b></span><span>X<br><b>16:9</b></span></div>
+    </div>
+    <div class="nova-float"><div class="nova-avatar">N</div><div><b>Nova AI</b><span>● Online</span><small>Your AI Sales & Support Assistant</small></div><p>Hi! I'm Nova. Ask me anything about AutoStreamAI or start a project!</p><div class="nova-input">Type a message... <b>➤</b></div></div>
+  </div>
+</section>
+
+<section id="features" class="section feature-section">
+  <div class="section-kicker">WHY AUTOSTREAMAI</div><h2>Everything You Need to Grow</h2><p class="section-sub">Powerful AI tools designed for modern creators</p>
+  <div class="feature-grid">
+    <article><div class="icon">ϟ</div><h3>AI Video Editing</h3><p>Automatically find the best moments and create engaging clips.</p></article>
+    <article><div class="icon">CC</div><h3>Smart Captions</h3><p>Accurate, stylish captions for better reach and engagement.</p></article>
+    <article><div class="icon">▣</div><h3>Multi-Platform</h3><p>Optimized formats for YouTube, Instagram, TikTok, LinkedIn and more.</p></article>
+    <article><div class="icon">◷</div><h3>Save Time</h3><p>Go from raw video to ready-to-post in minutes.</p></article>
+    <article><div class="icon blue">▥</div><h3>Grow Faster</h3><p>Create more content, reach more people, and grow your audience.</p></article>
+  </div>
+</section>
+
+<section id="how-it-works" class="section workflow-teaser">
+  <div><div class="section-kicker">HOW IT WORKS</div><h2>From raw footage to ready-to-post</h2><p class="section-sub">One workflow handles transcription, highlight selection, captions, formatting and MP4 export.</p></div>
+  <div class="workflow-steps"><div><b>01</b><strong>Upload</strong><span>Your source video</span></div><div><b>02</b><strong>Analyze</strong><span>Whisper + GPT-OSS</span></div><div><b>03</b><strong>Create</strong><span>Captions + framing</span></div><div><b>04</b><strong>Export</strong><span>Platform-ready MP4</span></div></div>
+</section>
+
+<section id="workflow" class="workspace">
+  <div class="section-head"><div><p class="eyebrow">CREATOR WORKSPACE</p><h2>Build your next video</h2></div><span id="project-status">No project yet</span></div>
+  <div class="workspace-grid">
+    <form id="project-form" class="panel"><h3>1. Project setup</h3><label>Project name<input id="project-name" required placeholder="My podcast clip"></label><label>Publish platform<select id="platform"><option>YouTube</option><option>Instagram</option><option>TikTok</option><option>LinkedIn</option><option>Twitter/X</option></select></label><label>Editing style<select id="style"><option>Auto highlights</option><option>Short-form viral</option><option>Clean professional</option><option>Podcast clips</option></select></label><button class="primary full" type="submit">Create project</button></form>
+    <div class="panel"><h3>2. Upload source video</h3><label class="drop"><input id="video-file" type="file" accept="video/*"><strong>Choose a video</strong><span>MP4, MOV, MKV, WEBM, AVI, M4V</span></label><button id="upload-btn" class="secondary full" disabled>Upload video</button><div id="file-info" class="file-info">No video selected</div></div>
+    <div class="panel pipeline-panel"><h3>3. AI processing</h3><div class="progress"><i id="progress-bar"></i></div><div class="progress-meta"><span id="progress-label">Waiting for upload</span><b id="progress-value">0%</b></div><button id="process-btn" class="primary full" disabled>Run AI pipeline</button><div id="output" class="output"></div></div>
+  </div>
+  <div class="recent panel"><div class="section-head compact"><h3>Recent projects</h3><button id="refresh-projects">Refresh</button></div><div id="projects-list" class="projects-list"></div></div>
+</section>
+
+<section id="pricing" class="section pricing"><div class="section-kicker">PRICING</div><h2>Start creating with AI</h2><p class="section-sub">Use the creator workspace to turn your footage into finished platform-ready videos.</p><a class="primary large" href="/?view=workflow" target="_blank" rel="noopener">Create Your First Project →</a></section>
+
+<section id="chat" class="chat-section"><div><p class="eyebrow">MEET NOVA</p><h2>Your AI copilot for AutoStreamAI</h2><p>Ask about plans, features, or getting started.</p></div><div class="chat-card"><div class="chat-head"><div class="status-dot"></div><div><strong>Nova</strong><small>AutoStream AI Sales Agent</small></div></div><div id="messages" class="messages"><div class="bubble bot">Hi! I'm Nova. Ask me about AutoStreamAI, pricing, features, or getting started.</div></div><form id="chat-form" class="chat-form"><input id="message" autocomplete="off" placeholder="Ask Nova anything..." maxlength="2000" required><button>Send</button></form><div id="meta" class="chat-meta">Knowledge-grounded AI assistant</div></div></section>
+</main>
+<script src="/static/app.js"></script>
+<script>const view=new URLSearchParams(location.search).get("view");if(view){requestAnimationFrame(()=>document.getElementById(view)?.scrollIntoView({behavior:"smooth",block:"start"}))}</script>
+</body>
+</html>
