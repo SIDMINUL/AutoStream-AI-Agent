@@ -125,7 +125,7 @@ async def _run_processing(project_id:int):
 
     try:
         update_project(project_id,status="processing",progress=20,current_step="Analyzing video")
-        await asyncio.sleep(.2)
+        time.sleep(.2)
 
         with tempfile.TemporaryDirectory(prefix=f"autostream_{project_id}_") as work_dir:
             update_project(project_id,progress=35,current_step="Transcribing speech with Whisper")
@@ -138,7 +138,7 @@ async def _run_processing(project_id:int):
                 work_dir,
             )
             update_project(project_id,progress=55,current_step="Selecting the best highlight")
-            await asyncio.sleep(.2)
+            time.sleep(.2)
             update_project(project_id,progress=70,current_step="Generating timed captions")
             await asyncio.sleep(.2)
             update_project(project_id,progress=85,current_step="Formatting for platform")
