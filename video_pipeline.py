@@ -49,7 +49,7 @@ def _extract_audio(source: str, destination: str):
 def _transcribe(audio_path: str):
     from groq import Groq
 
-    client = Groq(api_key=os.environ["GROQ_API_KEY"])
+    client = Groq(api_key=os.environ["GROQ_API_KEY"], timeout=60.0, max_retries=1)
     with open(audio_path, "rb") as audio:
         response = client.audio.transcriptions.create(
             file=(Path(audio_path).name, audio.read()),
@@ -195,8 +195,11 @@ def process_video(source: str, output: str, platform: str, work_dir: str):
     audio = str(Path(work_dir) / "audio.mp3")
     srt = str(Path(work_dir) / "captions.srt")
 
+    print(f"[pipeline] extracting audio for {duration:.2f}s video", flush=True)
     _extract_audio(source, audio)
+    print("[pipeline] sending audio to Groq Whisper", flush=True)
     transcript, segments = _transcribe(audio)
+    print(f"[pipeline] Whisper complete: {len(segments)} segments", flush=True)
     if duration <= 12:
         highlight = {
             "start": 0.0,
