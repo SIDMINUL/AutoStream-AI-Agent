@@ -95,7 +95,10 @@ Choose ONE compelling short-form highlight from this transcript.
 
 Rules:
 - Prefer a strong hook, insight, punchline, surprising statement, story beat, or useful takeaway.
-- Target 20-60 seconds.
+- Select the timestamp range where that content actually occurs.
+- Do NOT automatically choose the first 20 seconds.
+- Do NOT use start=0 unless the strongest content genuinely begins at 0.
+- Target 15-45 seconds when enough speech exists; for shorter speech, use the actual speech range.
 - start must be before end.
 - Keep timestamps inside the source duration ({duration:.2f} seconds).
 - Return ONLY valid JSON:
@@ -117,15 +120,26 @@ Timestamped transcript:
         if end <= start:
             end = min(duration, start + 1.0)
         if end - start < 8:
-            if duration <= 8:
-                start, end = 0.0, duration
-            else:
-                end = min(duration, start + 20)
+            # Do not pad a tiny AI selection from the beginning of the video.
+            # Prefer the surrounding speech timestamps instead.
+            speech_start = max(0.0, float(segments[0]["start"]))
+            speech_end = min(duration, float(segments[-1]["end"]))
+            if speech_end > speech_start:
+                start = max(speech_start, min(start, speech_end - 1.0))
+                end = min(speech_end, start + 20.0)
                 if end - start < 1.0:
-                    start, end = 0.0, duration
+                    start, end = speech_start, speech_end
+            else:
+                start, end = 0.0, duration
+        print(f"[pipeline] highlight selected: {start:.2f}-{end:.2f}s; reason={data.get('reason', '')}", flush=True)
         return {"start": start, "end": end, "reason": str(data.get("reason", "AI-selected highlight"))[:240]}
     except (ValueError, TypeError, KeyError, json.JSONDecodeError):
-        return {"start": segments[0]["start"], "end": min(segments[0]["start"] + 45, duration), "reason": "Fallback highlight."}
+        start = max(0.0, float(segments[0]["start"]))
+        end = min(duration, float(segments[-1]["end"]))
+        if end <= start:
+            end = min(duration, start + 20.0)
+        print(f"[pipeline] highlight fallback: {start:.2f}-{end:.2f}s", flush=True)
+        return {"start": start, "end": end, "reason": "Fallback to detected speech range."}
 
 
 def _srt_timestamp(seconds: float) -> str:
@@ -217,6 +231,8 @@ def process_video(source: str, output: str, platform: str, work_dir: str):
     print("[pipeline] sending audio to Groq Whisper", flush=True)
     transcript, segments = _transcribe(audio)
     print(f"[pipeline] Whisper complete: {len(segments)} segments; transcript_chars={len(transcript.strip())}", flush=True)
+    if segments:
+        print(f"[pipeline] speech range: {segments[0]['start']:.2f}-{segments[-1]['end']:.2f}s", flush=True)
     if duration <= 12:
         highlight = {
             "start": 0.0,
