@@ -13,6 +13,10 @@ def _connect():
     return conn
 
 
+def utc_now():
+    return datetime.now(timezone.utc).isoformat()
+
+
 def init_db():
     conn = _connect()
     conn.executescript("""
@@ -35,20 +39,30 @@ def init_db():
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT,
+        name TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        style TEXT NOT NULL,
+        source_filename TEXT,
+        source_size INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'draft',
+        progress INTEGER DEFAULT 0,
+        current_step TEXT DEFAULT 'Ready to upload',
+        output_filename TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
     """)
     conn.commit()
     conn.close()
 
 
-def utc_now():
-    return datetime.now(timezone.utc).isoformat()
-
-
 def get_session(session_id: str) -> Optional[dict]:
     conn = _connect()
-    row = conn.execute(
-        "SELECT state_json FROM sessions WHERE session_id = ?", (session_id,)
-    ).fetchone()
+    row = conn.execute("SELECT state_json FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
     conn.close()
     return json.loads(row["state_json"]) if row else None
 
@@ -56,16 +70,11 @@ def get_session(session_id: str) -> Optional[dict]:
 def save_session(session_id: str, state: dict):
     now = utc_now()
     conn = _connect()
-    conn.execute(
-        """
+    conn.execute("""
         INSERT INTO sessions(session_id, state_json, created_at, updated_at)
         VALUES (?, ?, ?, ?)
-        ON CONFLICT(session_id) DO UPDATE SET
-            state_json = excluded.state_json,
-            updated_at = excluded.updated_at
-        """,
-        (session_id, json.dumps(state), now, now),
-    )
+        ON CONFLICT(session_id) DO UPDATE SET state_json=excluded.state_json, updated_at=excluded.updated_at
+    """, (session_id, json.dumps(state), now, now))
     conn.commit()
     conn.close()
 
@@ -73,13 +82,10 @@ def save_session(session_id: str, state: dict):
 def create_lead(session_id: str, name: str, email: str, platform: str, intent: str = "high_intent"):
     now = utc_now()
     conn = _connect()
-    cursor = conn.execute(
-        """
+    cursor = conn.execute("""
         INSERT INTO leads(session_id, name, email, platform, intent, status, plan_interest, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, 'new', 'Pro', ?, ?)
-        """,
-        (session_id, name, email, platform, intent, now, now),
-    )
+    """, (session_id, name, email, platform, intent, now, now))
     conn.commit()
     lead_id = cursor.lastrowid
     conn.close()
@@ -89,9 +95,7 @@ def create_lead(session_id: str, name: str, email: str, platform: str, intent: s
 def list_leads(status: Optional[str] = None):
     conn = _connect()
     if status:
-        rows = conn.execute(
-            "SELECT * FROM leads WHERE status = ? ORDER BY created_at DESC", (status,)
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM leads WHERE status = ? ORDER BY created_at DESC", (status,)).fetchall()
     else:
         rows = conn.execute("SELECT * FROM leads ORDER BY created_at DESC").fetchall()
     conn.close()
@@ -103,39 +107,75 @@ def update_lead_status(lead_id: int, status: str):
     if status not in allowed:
         raise ValueError(f"Invalid status. Use one of: {', '.join(sorted(allowed))}")
     conn = _connect()
-    cursor = conn.execute(
-        "UPDATE leads SET status = ?, updated_at = ? WHERE id = ?",
-        (status, utc_now(), lead_id),
-    )
+    cursor = conn.execute("UPDATE leads SET status = ?, updated_at = ? WHERE id = ?", (status, utc_now(), lead_id))
     conn.commit()
     conn.close()
     return cursor.rowcount > 0
 
 
+def create_project(session_id: str, name: str, platform: str, style: str):
+    now = utc_now()
+    conn = _connect()
+    cursor = conn.execute("""
+        INSERT INTO projects(session_id, name, platform, style, status, progress, current_step, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'draft', 0, 'Ready to upload', ?, ?)
+    """, (session_id, name, platform, style, now, now))
+    conn.commit()
+    project_id = cursor.lastrowid
+    conn.close()
+    return get_project(project_id)
+
+
+def get_project(project_id: int):
+    conn = _connect()
+    row = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def list_projects(session_id: Optional[str] = None):
+    conn = _connect()
+    if session_id:
+        rows = conn.execute("SELECT * FROM projects WHERE session_id = ? ORDER BY created_at DESC", (session_id,)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def update_project(project_id: int, **fields):
+    allowed = {"source_filename", "source_size", "status", "progress", "current_step", "output_filename", "platform", "style", "name"}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return get_project(project_id)
+    updates["updated_at"] = utc_now()
+    sql = ", ".join(f"{k} = ?" for k in updates)
+    values = list(updates.values()) + [project_id]
+    conn = _connect()
+    conn.execute(f"UPDATE projects SET {sql} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+    return get_project(project_id)
+
+
 def analytics():
     conn = _connect()
     total = conn.execute("SELECT COUNT(*) AS n FROM leads").fetchone()["n"]
-    qualified = conn.execute(
-        "SELECT COUNT(*) AS n FROM leads WHERE status IN ('qualified', 'demo', 'converted')"
-    ).fetchone()["n"]
-    converted = conn.execute(
-        "SELECT COUNT(*) AS n FROM leads WHERE status = 'converted'"
-    ).fetchone()["n"]
+    qualified = conn.execute("SELECT COUNT(*) AS n FROM leads WHERE status IN ('qualified', 'demo', 'converted')").fetchone()["n"]
+    converted = conn.execute("SELECT COUNT(*) AS n FROM leads WHERE status = 'converted'").fetchone()["n"]
     sessions = conn.execute("SELECT COUNT(*) AS n FROM sessions").fetchone()["n"]
-
-    statuses = conn.execute(
-        "SELECT status, COUNT(*) AS count FROM leads GROUP BY status ORDER BY count DESC"
-    ).fetchall()
-    platforms = conn.execute(
-        "SELECT platform, COUNT(*) AS count FROM leads GROUP BY platform ORDER BY count DESC"
-    ).fetchall()
+    projects = conn.execute("SELECT COUNT(*) AS n FROM projects").fetchone()["n"]
+    completed_projects = conn.execute("SELECT COUNT(*) AS n FROM projects WHERE status = 'completed'").fetchone()["n"]
+    statuses = conn.execute("SELECT status, COUNT(*) AS count FROM leads GROUP BY status ORDER BY count DESC").fetchall()
+    platforms = conn.execute("SELECT platform, COUNT(*) AS count FROM leads GROUP BY platform ORDER BY count DESC").fetchall()
     conn.close()
-
     return {
         "total_leads": total,
         "qualified_leads": qualified,
         "converted_leads": converted,
         "active_sessions": sessions,
+        "projects": projects,
+        "completed_projects": completed_projects,
         "conversion_rate": round((converted / total * 100), 1) if total else 0,
         "pipeline": [dict(row) for row in statuses],
         "platforms": [dict(row) for row in platforms],
