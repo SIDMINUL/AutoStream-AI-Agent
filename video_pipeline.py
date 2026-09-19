@@ -98,10 +98,17 @@ Timestamped transcript:
 
     try:
         data = json.loads(match.group())
-        start = max(0.0, min(float(data["start"]), duration - 0.5))
-        end = max(start + 1.0, min(float(data["end"]), duration))
+        start = max(0.0, min(float(data["start"]), max(0.0, duration - 1.0)))
+        end = min(float(data["end"]), duration)
+        if end <= start:
+            end = min(duration, start + 1.0)
         if end - start < 8:
-            end = min(duration, start + 20)
+            if duration <= 8:
+                start, end = 0.0, duration
+            else:
+                end = min(duration, start + 20)
+                if end - start < 1.0:
+                    start, end = 0.0, duration
         return {"start": start, "end": end, "reason": str(data.get("reason", "AI-selected highlight"))[:240]}
     except (ValueError, TypeError, KeyError, json.JSONDecodeError):
         return {"start": segments[0]["start"], "end": min(segments[0]["start"] + 45, duration), "reason": "Fallback highlight."}
