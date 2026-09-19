@@ -1,19 +1,19 @@
 # AutoStream AI Sales Platform
 
-> A full-stack AI sales automation platform powered by **LangGraph, LangChain, Groq, FastAPI, SQLite, and a customer/admin web interface**.
+> A full-stack AI creator and sales automation platform powered by **LangGraph, LangChain, Groq, Whisper, FastAPI, SQLite, FFmpeg, and a customer/admin web interface**.
 
 AutoStream has evolved from a conversational AI demo into an end-to-end sales platform: customers interact with an AI sales agent, high-intent conversations are qualified into leads, leads are persisted, and an operations dashboard tracks the sales pipeline.
 
 ## ✨ Features
 
-- 🧠 **Intent classification** — greeting, inquiry, and high-intent conversations
+- 🎬 **AI video pipeline** — transcription, highlight selection, timed captions, platform formatting, and MP4 export\n- 🧠 **Intent classification** — greeting, inquiry, and high-intent conversations
 - 📚 **Knowledge-base grounding** — product answers are constrained to the supplied AutoStream data
 - 🔄 **LangGraph workflow** — explicit stateful routing between classification, response, and lead-collection nodes
 - 🎯 **Lead qualification** — collects name, email, and creator platform one field at a time
 - 🛠️ **Lead management** — qualified leads are persisted in SQLite and exposed through REST APIs
 - 📊 **Sales dashboard** — pipeline, conversion, platform and lead analytics
 - 🌐 **Customer web app** — landing page and AI sales experience in the same deployment
-- 💬 **Groq LLM** — fast conversational response generation with Llama 3.1 8B Instant
+- 💬 **Groq AI** — GPT-OSS 20B for conversation/highlight selection and Whisper Large V3 Turbo for transcription
 - 🌐 **FastAPI REST API** — deployable `/chat` and `/health` endpoints
 - 🔗 **Session-aware API** — conversation state can be continued using a `session_id`
 - 📖 **Swagger documentation** — interactive API docs at `/docs`
@@ -106,7 +106,7 @@ After all required fields are available, the project calls `mock_lead_capture()`
 ```text
 AutoStream-AI-Agent/
 ├── agent.py              # LangGraph agent and business logic
-├── api.py                # FastAPI, web routes and REST endpoints
+├── api.py                # FastAPI, web routes and REST endpoints\n├── video_pipeline.py     # Whisper + GPT-OSS + FFmpeg video pipeline
 ├── db.py                 # Persistent sessions, leads and analytics
 ├── main.py               # Interactive CLI application
 ├── knowledge_base.json   # Product/business knowledge
@@ -258,7 +258,7 @@ The repository contains `render.yaml` with:
 
 After connecting the repository to Render, add your `GROQ_API_KEY` and deploy the web service.
 
-## 🔐 Security Notes
+## 🎬 AI Video Processing\n\nThe creator workflow now performs real processing when `GROQ_API_KEY` and FFmpeg are available:\n\n1. Extract mono audio with FFmpeg.\n2. Transcribe speech with Groq Whisper Large V3 Turbo and segment timestamps.\n3. Ask GPT-OSS 20B to select a compelling 20–60 second highlight.\n4. Generate timed SRT captions from the transcript.\n5. Render the selected clip to the chosen platform aspect ratio with burned-in captions.\n\nGroq direct uploads have file-size limits, so the pipeline compresses audio before transcription. Very long recordings may require additional chunking.\n\n## 🔐 Security Notes
 
 - API keys belong in environment variables, never source code.
 - `.env` and other local secret files are excluded through `.gitignore`.
