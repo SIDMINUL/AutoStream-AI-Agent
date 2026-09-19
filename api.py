@@ -79,7 +79,7 @@ def get_analytics(): return analytics()
 
 @app.post("/api/projects")
 def projects_create(request:ProjectCreate):
-    session_id=request.session_id or uuid.uuid4().hex
+    session_id=uuid.uuid4().hex
     return create_project(session_id,request.name.strip(),request.platform,request.style)
 @app.get("/api/projects")
 def projects_list(session_id:str|None=None): return list_projects(session_id)
