@@ -25,11 +25,12 @@ if SUPABASE_URL and SUPABASE_KEY:
 def _storage_upload(local_path: str, object_path: str, content_type: str):
     if not supabase_client:
         return None
+    # Pass the file handle directly to Supabase instead of reading the whole
+    # video into RAM. Render's instance has only 512 MB available.
     with open(local_path, "rb") as handle:
-        data = handle.read()
-    supabase_client.storage.from_(STORAGE_BUCKET).upload(
-        object_path, data, {"content-type": content_type, "upsert": "true"}
-    )
+        supabase_client.storage.from_(STORAGE_BUCKET).upload(
+            object_path, handle, {"content-type": content_type, "upsert": "true"}
+        )
     return object_path
 
 def _storage_download(object_path: str):
@@ -129,8 +130,9 @@ async def _run_processing(project_id:int):
         time.sleep(.2)
 
         with tempfile.TemporaryDirectory(prefix=f"autostream_{project_id}_") as work_dir:
-            update_project(project_id,progress=35,current_step="Transcribing speech with Whisper")
+            update_project(project_id,progress=25,current_step="Extracting audio")
             await asyncio.to_thread(_ensure_ffmpeg)
+            update_project(project_id,progress=35,current_step="Transcribing speech with Whisper")
             await asyncio.to_thread(
                 process_video,
                 source,
@@ -138,13 +140,11 @@ async def _run_processing(project_id:int):
                 project.get("platform") or "YouTube",
                 work_dir,
             )
-            update_project(project_id,progress=55,current_step="Selecting the best highlight")
-            time.sleep(.2)
-            update_project(project_id,progress=70,current_step="Generating timed captions")
-            await asyncio.sleep(.2)
-            update_project(project_id,progress=85,current_step="Formatting for platform")
-            await asyncio.sleep(.2)
-            update_project(project_id,progress=95,current_step="Rendering final MP4")
+            update_project(project_id,progress=60,current_step="Applying AI captions and highlight")
+            await asyncio.sleep(.1)
+            update_project(project_id,progress=80,current_step="Formatting for platform")
+            await asyncio.sleep(.1)
+            update_project(project_id,progress=95,current_step="Finalizing MP4")
 
         if supabase_client:
             output_path = _storage_upload(str(output), f"projects/{project_id}/output.mp4", "video/mp4")
