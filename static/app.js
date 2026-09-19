@@ -1,41 +1,12 @@
-let sessionId = localStorage.getItem("autostream_session_id") || null;
-const form = document.getElementById("chat-form");
-const input = document.getElementById("message");
-const messages = document.getElementById("messages");
-const meta = document.getElementById("meta");
-
-function addMessage(text, role){
-  const el = document.createElement("div");
-  el.className = "bubble " + role;
-  el.textContent = text;
-  messages.appendChild(el);
-  messages.scrollTop = messages.scrollHeight;
-}
-
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const message = input.value.trim();
-  if(!message) return;
-  addMessage(message, "user");
-  input.value = "";
-  meta.textContent = "Nova is thinking...";
-
-  try {
-    const res = await fetch("/chat", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({message, session_id:sessionId})
-    });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.detail || "Request failed");
-    sessionId = data.session_id;
-    localStorage.setItem("autostream_session_id", sessionId);
-    addMessage(data.reply, "bot");
-    meta.textContent = data.lead_captured
-      ? "Lead captured · Our team can follow up"
-      : "Intent: " + (data.intent || "conversation");
-  } catch(err) {
-    addMessage("Sorry, something went wrong. Please try again.", "bot");
-    meta.textContent = "Connection error";
-  }
-});
+let sessionId=localStorage.getItem("autostream_session_id")||null;let projectId=null;let pollTimer=null;
+const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),meta=document.getElementById("meta"),projectForm=document.getElementById("project-form"),fileInput=document.getElementById("video-file"),uploadBtn=document.getElementById("upload-btn"),processBtn=document.getElementById("process-btn"),projectStatus=document.getElementById("project-status"),progressBar=document.getElementById("progress-bar"),progressLabel=document.getElementById("progress-label"),progressValue=document.getElementById("progress-value"),fileInfo=document.getElementById("file-info"),output=document.getElementById("output");
+function addMessage(text,role){const el=document.createElement("div");el.className="bubble "+role;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight}
+form.addEventListener("submit",async e=>{e.preventDefault();const message=input.value.trim();if(!message)return;addMessage(message,"user");input.value="";meta.textContent="Nova is thinking...";try{const res=await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message,session_id:sessionId})});const data=await res.json();if(!res.ok)throw new Error(data.detail||"Request failed");sessionId=data.session_id;localStorage.setItem("autostream_session_id",sessionId);addMessage(data.reply,"bot");meta.textContent=data.lead_captured?"Lead captured · Our team can follow up":"Intent: "+(data.intent||"conversation")}catch(err){addMessage("Sorry, something went wrong. Please try again.","bot");meta.textContent="Connection error"}});
+projectForm.addEventListener("submit",async e=>{e.preventDefault();try{const res=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:document.getElementById("project-name").value.trim(),platform:document.getElementById("platform").value,style:document.getElementById("style").value,session_id:sessionId})});const data=await res.json();if(!res.ok)throw new Error(data.detail||"Could not create project");projectId=data.id;projectStatus.textContent="Project #"+projectId+" · Draft";output.textContent="Project created. Select your source video.";uploadBtn.disabled=!fileInput.files.length;processBtn.disabled=true;await loadProjects()}catch(err){projectStatus.textContent=err.message}});
+fileInput.addEventListener("change",()=>{uploadBtn.disabled=!fileInput.files.length||!projectId;fileInfo.textContent=fileInput.files.length?fileInput.files[0].name+" · "+formatBytes(fileInput.files[0].size):"No video selected"});
+uploadBtn.addEventListener("click",async()=>{if(!projectId||!fileInput.files[0])return;uploadBtn.disabled=true;fileInfo.textContent="Uploading...";const fd=new FormData();fd.append("file",fileInput.files[0]);try{const res=await fetch("/api/projects/"+projectId+"/upload",{method:"POST",body:fd});const data=await res.json();if(!res.ok)throw new Error(data.detail||"Upload failed");fileInfo.textContent=data.source_filename+" · "+formatBytes(data.source_size);projectStatus.textContent="Project #"+projectId+" · Uploaded";progress(10,"Video uploaded");processBtn.disabled=false;await loadProjects()}catch(err){fileInfo.textContent=err.message;uploadBtn.disabled=false}});
+processBtn.addEventListener("click",async()=>{if(!projectId)return;processBtn.disabled=true;output.textContent="AI pipeline started...";try{const res=await fetch("/api/projects/"+projectId+"/process",{method:"POST"});const data=await res.json();if(!res.ok)throw new Error(data.detail||"Processing failed");progress(data.progress,data.current_step);projectStatus.textContent="Project #"+projectId+" · Processing";clearInterval(pollTimer);pollTimer=setInterval(pollProject,1500)}catch(err){output.textContent=err.message;processBtn.disabled=false}});
+async function pollProject(){try{const res=await fetch("/api/projects/"+projectId);const data=await res.json();progress(data.progress,data.current_step);projectStatus.textContent="Project #"+projectId+" · "+data.status;if(data.status==="completed"){clearInterval(pollTimer);processBtn.disabled=false;output.textContent="Pipeline complete. "+data.output_filename+" is ready as the next export step.";await loadProjects()}}catch(err){clearInterval(pollTimer)}}
+async function loadProjects(){const query=sessionId?"?session_id="+encodeURIComponent(sessionId):"";const res=await fetch("/api/projects"+query);if(!res.ok)return;const projects=await res.json();document.getElementById("projects-list").innerHTML=projects.length?projects.map(p=>"<button class='project-row' onclick='selectProject("+p.id+")'><span><b>"+escapeHtml(p.name)+"</b><small>"+escapeHtml(p.platform)+" · "+escapeHtml(p.style)+"</small></span><em>"+escapeHtml(p.status)+" · "+p.progress+"%</em></button>").join(""):"<span class='muted'>No projects yet.</span>"}
+async function selectProject(id){const res=await fetch("/api/projects/"+id);const p=await res.json();if(!res.ok)return;projectId=p.id;document.getElementById("project-name").value=p.name;document.getElementById("platform").value=p.platform;document.getElementById("style").value=p.style;projectStatus.textContent="Project #"+p.id+" · "+p.status;progress(p.progress,p.current_step);processBtn.disabled=!p.source_filename||p.status==="processing";output.textContent=p.output_filename?"Completed export: "+p.output_filename:""}
+document.getElementById("refresh-projects").addEventListener("click",loadProjects);function progress(value,label){progressBar.style.width=value+"%";progressValue.textContent=value+"%";progressLabel.textContent=label}function formatBytes(bytes){if(!bytes)return"0 B";const units=["B","KB","MB","GB"];const i=Math.floor(Math.log(bytes)/Math.log(1024));return(bytes/Math.pow(1024,i)).toFixed(i?1:0)+" "+units[i]}function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}loadProjects();
