@@ -42,7 +42,7 @@ def _duration(path: str) -> float:
 def _extract_audio(source: str, destination: str):
     _run([
         "ffmpeg", "-y", "-i", source, "-vn", "-ac", "1", "-ar", "16000",
-        "-b:a", "32k", destination
+        "-c:a", "pcm_s16le", destination
     ], timeout=900)
 
 
@@ -67,7 +67,16 @@ def _transcribe(audio_path: str):
         if text.strip():
             segments.append({"start": start, "end": end, "text": text.strip()})
 
-    return getattr(response, "text", "") or "", segments
+    transcript = getattr(response, "text", "") or ""
+    # Some verbose Whisper responses can contain transcript text without
+    # populated segment objects. Preserve that text as one timed caption.
+    if transcript.strip() and not segments:
+        segments = [{
+            "start": 0.0,
+            "end": 0.1,
+            "text": transcript.strip(),
+        }]
+    return transcript, segments
 
 
 def _choose_highlight(transcript: str, segments: list[dict], duration: float) -> dict:
@@ -197,7 +206,7 @@ def process_video(source: str, output: str, platform: str, work_dir: str):
         raise RuntimeError("GROQ_API_KEY is not configured.")
 
     duration = _duration(source)
-    audio = str(Path(work_dir) / "audio.mp3")
+    audio = str(Path(work_dir) / "audio.wav")
     srt = str(Path(work_dir) / "captions.srt")
 
     print(f"[pipeline] extracting audio for {duration:.2f}s video", flush=True)
@@ -207,7 +216,7 @@ def process_video(source: str, output: str, platform: str, work_dir: str):
     # possible so captions are preserved, but avoid the LLM highlight step.
     print("[pipeline] sending audio to Groq Whisper", flush=True)
     transcript, segments = _transcribe(audio)
-    print(f"[pipeline] Whisper complete: {len(segments)} segments", flush=True)
+    print(f"[pipeline] Whisper complete: {len(segments)} segments; transcript_chars={len(transcript.strip())}", flush=True)
     if duration <= 12:
         highlight = {
             "start": 0.0,
