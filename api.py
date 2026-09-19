@@ -14,12 +14,12 @@ from db import analytics, create_project, get_project, get_session, init_db, lis
 from video_pipeline import process_video
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "autostream-videos")
 supabase_client = None
-if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+if SUPABASE_URL and SUPABASE_KEY:
     from supabase import create_client
-    supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def _storage_upload(local_path: str, object_path: str, content_type: str):
     if not supabase_client:
