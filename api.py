@@ -3,6 +3,7 @@ import uuid
 import asyncio
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -10,9 +11,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from agent import initial_state, process_turn
 from db import analytics, create_project, get_project, get_session, init_db, list_leads, list_projects, save_session, update_lead_status, update_project
+from video_pipeline import process_video
 
 init_db()
-app=FastAPI(title="AutoStream AI Creator Platform API",version="3.1.0")
+app=FastAPI(title="AutoStream AI Creator Platform API",version="4.0.0")
 app.mount("/static",StaticFiles(directory="static"),name="static")
 UPLOAD_DIR=Path("uploads"); UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -25,14 +27,13 @@ class ProjectCreate(BaseModel):
     name:str=Field(...,min_length=1,max_length=120)
     platform:str=Field(...,min_length=1,max_length=40)
     style:str=Field(...,min_length=1,max_length=60)
-    session_id:str|None=None
 
 @app.get("/")
 def root(): return FileResponse("static/index.html")
 @app.get("/admin")
 def admin(): return FileResponse("static/admin.html")
 @app.get("/health")
-def health(): return {"status":"ok","service":"autostream-ai-platform","version":"3.1.0"}
+def health(): return {"status":"ok","service":"autostream-ai-platform","version":"4.0.0"}
 
 @app.post("/chat")
 def chat(request:ChatRequest):
@@ -80,23 +81,41 @@ async def projects_upload(project_id:int,file:UploadFile=File(...)):
 async def _run_processing(project_id:int):
     project=get_project(project_id)
     if not project: return
-    update_project(project_id,status="processing",progress=20,current_step="Analyzing video")
-    for step,progress in [("Detecting scenes",35),("Finding highlights",50),("Generating captions",65),("Formatting for platform",80)]:
-        await asyncio.sleep(1.2); update_project(project_id,status="processing",progress=progress,current_step=step)
-    source=project.get("source_path"); output=UPLOAD_DIR/f"autostream_project_{project_id}.mp4"
-    update_project(project_id,status="processing",progress=90,current_step="Rendering platform-ready MP4")
-    await asyncio.sleep(.5)
-    if not source or not Path(source).exists(): return
-    if shutil.which("ffmpeg"):
-        sizes={"TikTok":"1080:1920","Instagram":"1080:1920","YouTube":"1920:1080","LinkedIn":"1920:1080","Twitter/X":"1280:720"}
-        size=sizes.get(project.get("platform"),"1920:1080")
-        vf=f"scale={size}:force_original_aspect_ratio=decrease,pad={size}:(ow-iw)/2:(oh-ih)/2"
-        try:
-            subprocess.run(["ffmpeg","-y","-i",source,"-vf",vf,"-c:v","libx264","-preset","veryfast","-crf","23","-c:a","aac","-movflags","+faststart",str(output)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=600)
-        except Exception:
-            shutil.copy2(source,output)
-    else: shutil.copy2(source,output)
-    update_project(project_id,status="completed",progress=100,current_step="Export complete",output_filename=output.name)
+    source=project.get("source_path")
+    output=UPLOAD_DIR/f"autostream_project_{project_id}.mp4"
+    if not source or not Path(source).exists():
+        update_project(project_id,status="failed",progress=0,current_step="Source video is missing")
+        return
+
+    try:
+        update_project(project_id,status="processing",progress=20,current_step="Analyzing video")
+        await asyncio.sleep(.2)
+
+        with tempfile.TemporaryDirectory(prefix=f"autostream_{project_id}_") as work_dir:
+            update_project(project_id,progress=35,current_step="Transcribing speech with Whisper")
+            await asyncio.to_thread(_ensure_ffmpeg)
+            await asyncio.to_thread(
+                process_video,
+                source,
+                str(output),
+                project.get("platform") or "YouTube",
+                work_dir,
+            )
+            update_project(project_id,progress=55,current_step="Selecting the best highlight")
+            await asyncio.sleep(.2)
+            update_project(project_id,progress=70,current_step="Generating timed captions")
+            await asyncio.sleep(.2)
+            update_project(project_id,progress=85,current_step="Formatting for platform")
+            await asyncio.sleep(.2)
+            update_project(project_id,progress=95,current_step="Rendering final MP4")
+
+        update_project(project_id,status="completed",progress=100,current_step="AI export complete",output_filename=output.name)
+    except Exception as exc:
+        update_project(project_id,status="failed",progress=0,current_step=f"Processing failed: {str(exc)[:180]}")
+
+def _ensure_ffmpeg():
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        raise RuntimeError("FFmpeg and ffprobe are required for AI video processing.")
 
 @app.post("/api/projects/{project_id}/process")
 async def projects_process(project_id:int,background_tasks:BackgroundTasks):
