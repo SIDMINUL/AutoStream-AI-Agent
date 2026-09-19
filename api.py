@@ -6,12 +6,36 @@ import subprocess
 import tempfile
 from pathlib import Path
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from agent import initial_state, process_turn
 from db import analytics, create_project, get_project, get_session, init_db, list_leads, list_projects, save_session, update_lead_status, update_project
 from video_pipeline import process_video
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "autostream-videos")
+supabase_client = None
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+    from supabase import create_client
+    supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+def _storage_upload(local_path: str, object_path: str, content_type: str):
+    if not supabase_client:
+        return None
+    with open(local_path, "rb") as handle:
+        data = handle.read()
+    supabase_client.storage.from_(STORAGE_BUCKET).upload(
+        object_path, data, {"content-type": content_type, "upsert": "true"}
+    )
+    return object_path
+
+def _storage_download(object_path: str):
+    if not supabase_client:
+        return None
+    return supabase_client.storage.from_(STORAGE_BUCKET).download(object_path)
+
 
 init_db()
 app=FastAPI(title="AutoStream AI Creator Platform API",version="4.0.0")
@@ -76,13 +100,25 @@ async def projects_upload(project_id:int,file:UploadFile=File(...)):
     with destination.open("wb") as output:
         while chunk:=await file.read(1024*1024):
             size+=len(chunk); output.write(chunk)
-    return update_project(project_id,source_filename=file.filename,source_path=str(destination),source_size=size,status="uploaded",progress=10,current_step="Video uploaded")
+    storage_path = None
+    if supabase_client:
+        storage_path = _storage_upload(str(destination), f"projects/{project_id}/source{suffix}", file.content_type or "video/mp4")
+        destination.unlink(missing_ok=True)
+    return update_project(project_id,source_filename=file.filename,source_path=storage_path or str(destination),source_size=size,status="uploaded",progress=10,current_step="Video uploaded")
 
 async def _run_processing(project_id:int):
     project=get_project(project_id)
     if not project: return
     source=project.get("source_path")
     output=UPLOAD_DIR/f"autostream_project_{project_id}.mp4"
+    if supabase_client and source:
+        try:
+            local_source = UPLOAD_DIR/f"processing_{project_id}_{uuid.uuid4().hex}.mp4"
+            local_source.write_bytes(_storage_download(source))
+            source = str(local_source)
+        except Exception:
+            update_project(project_id,status="failed",progress=0,current_step="Source video could not be downloaded from storage")
+            return
     if not source or not Path(source).exists():
         update_project(project_id,status="failed",progress=0,current_step="Source video is missing")
         return
@@ -109,7 +145,12 @@ async def _run_processing(project_id:int):
             await asyncio.sleep(.2)
             update_project(project_id,progress=95,current_step="Rendering final MP4")
 
-        update_project(project_id,status="completed",progress=100,current_step="AI export complete",output_filename=output.name)
+        if supabase_client:
+            output_path = _storage_upload(str(output), f"projects/{project_id}/output.mp4", "video/mp4")
+            output.unlink(missing_ok=True)
+            update_project(project_id,status="completed",progress=100,current_step="AI export complete",output_filename=output_path)
+        else:
+            update_project(project_id,status="completed",progress=100,current_step="AI export complete",output_filename=output.name)
     except Exception as exc:
         update_project(project_id,status="failed",progress=0,current_step=f"Processing failed: {str(exc)[:180]}")
 
@@ -130,6 +171,12 @@ async def projects_process(project_id:int,background_tasks:BackgroundTasks):
 def projects_output(project_id:int):
     project=get_project(project_id)
     if not project or project["status"]!="completed": raise HTTPException(status_code=404,detail="Processed output is not ready")
+    if supabase_client:
+        try:
+            data = _storage_download(project["output_filename"])
+            return StreamingResponse(iter([data]), media_type="video/mp4", headers={"Content-Disposition": f'attachment; filename="autostream_project_{project_id}.mp4"'})
+        except Exception:
+            raise HTTPException(status_code=404,detail="Output file is missing from storage")
     output=UPLOAD_DIR/project["output_filename"]
     if not output.exists(): raise HTTPException(status_code=404,detail="Output file is missing")
-    return FileResponse(output,filename=project["output_filename"],media_type="video/mp4")
+    return FileResponse(output,filename=output.name,media_type="video/mp4")
