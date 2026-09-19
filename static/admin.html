@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoStream — Sales Dashboard</title><link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+<header><div class="brand">AutoStream<span>AI</span></div><a href="/">Customer App</a></header>
+<main>
+<div class="title"><div><p>SALES OPERATIONS</p><h1>AI Sales Dashboard</h1></div><button onclick="load()">Refresh</button></div>
+<section class="cards">
+<div><span>Total Leads</span><b id="total">0</b></div><div><span>Qualified</span><b id="qualified">0</b></div><div><span>Converted</span><b id="converted">0</b></div><div><span>Conversion Rate</span><b id="rate">0%</b></div>
+</section>
+<section class="grid">
+<div class="panel"><h2>Lead Pipeline</h2><div id="pipeline"></div></div>
+<div class="panel"><h2>Creator Platforms</h2><div id="platforms"></div></div>
+</section>
+<section class="panel"><div class="panel-head"><h2>Leads</h2><select id="filter" onchange="load()"><option value="">All</option><option>new</option><option>contacted</option><option>qualified</option><option>demo</option><option>converted</option><option>lost</option></select></div>
+<div class="table-wrap"><table><thead><tr><th>Lead</th><th>Email</th><th>Platform</th><th>Intent</th><th>Status</th><th>Created</th></tr></thead><tbody id="leads"></tbody></table></div></section>
+</main><script src="/static/admin.js"></script>
+</body></html>
