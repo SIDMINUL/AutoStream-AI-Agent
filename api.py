@@ -61,7 +61,7 @@ def health(): return {"status":"ok","service":"autostream-ai-platform","version"
 
 @app.post("/chat")
 def chat(request:ChatRequest):
-    session_id=request.session_id or uuid.uuid4().hex
+    session_id=uuid.uuid4().hex
     state=get_session(session_id) or initial_state()
     reply,state=process_turn(request.message.strip(),state,session_id); save_session(session_id,state)
     return {"session_id":session_id,"reply":reply,"intent":state.get("intent"),"lead_captured":state.get("lead_captured",False)}
