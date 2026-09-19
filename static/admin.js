@@ -11,7 +11,7 @@ async function load(){
   renderBars("platforms", analytics.platforms);
   document.getElementById("leads").innerHTML=leads.map(x=>`<tr>
     <td><b>${escapeHtml(x.name)}</b></td><td>${escapeHtml(x.email)}</td><td>${escapeHtml(x.platform)}</td>
-    <td><span class="pill">${escapeHtml(x.intent)}</span></td><td><span class="pill">${escapeHtml(x.status)}</span></td>
+    <td><span class="pill">${escapeHtml(x.intent)}</span></td><td><select class="status-select" onchange="changeStatus(${x.id}, this.value)">${["new","contacted","qualified","demo","converted","lost"].map(s=>`<option value="${s}" ${s===x.status?"selected":""}>${s}</option>`).join("")}</select></td>
     <td>${new Date(x.created_at).toLocaleString()}</td></tr>`).join("");
 }
 function renderBars(id, rows){
@@ -20,3 +20,14 @@ function renderBars(id, rows){
 }
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
 load();
+
+
+async function changeStatus(id, status){
+  const res = await fetch("/api/leads/"+id, {
+    method:"PATCH",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({status})
+  });
+  if(!res.ok){ alert("Could not update lead status"); }
+  await load();
+}
