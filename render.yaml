@@ -10,6 +10,16 @@ services:
         value: 3.13.5
       - key: GROQ_API_KEY
         sync: false
+      - key: HF_API_KEY
+        sync: false
+      - key: HF_API_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: autostream-videos
       - key: DATABASE_URL
         fromDatabase:
           name: autostream-ai-db
