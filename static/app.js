@@ -75,8 +75,8 @@ generateBtn?.addEventListener("click",async()=>{
         style:document.getElementById("video-style").value
       })
     });
-    const project=await createRes.json();
-    if(!createRes.ok)throw new Error(project.detail||"Could not create generation");
+    const project=await readJsonOrText(createRes);
+    if(!createRes.ok)throw new Error(project.detail||project.message||"Could not create generation");
 
     projectId=project.id;
 
@@ -85,13 +85,13 @@ generateBtn?.addEventListener("click",async()=>{
       const fd=new FormData();
       fd.append("file",imageInput.files[0]);
       const imageRes=await fetch("/api/projects/"+projectId+"/image",{method:"POST",body:fd});
-      const imageData=await imageRes.json();
-      if(!imageRes.ok)throw new Error(imageData.detail||"Image upload failed");
+      const imageData=await readJsonOrText(imageRes);
+      if(!imageRes.ok)throw new Error(imageData.detail||imageData.message||"Image upload failed");
     }
 
     const genRes=await fetch("/api/projects/"+projectId+"/generate",{method:"POST"});
-    const genData=await genRes.json();
-    if(!genRes.ok)throw new Error(genData.detail||"Generation could not start");
+    const genData=await readJsonOrText(genRes);
+    if(!genRes.ok)throw new Error(genData.detail||genData.message||"Generation could not start");
 
     setProgress(genData.progress,genData.current_step);
     generationStatus.textContent="Generating...";
@@ -112,8 +112,8 @@ async function pollProject(){
   if(!projectId)return;
   try{
     const res=await fetch("/api/projects/"+projectId);
-    const data=await res.json();
-    if(!res.ok)throw new Error(data.detail||"Could not read generation status");
+    const data=await readJsonOrText(res);
+    if(!res.ok)throw new Error(data.detail||data.message||"Could not read generation status");
     setProgress(data.progress,data.current_step);
     projectStatus.textContent="Project #"+projectId+" · "+data.status;
 
@@ -187,6 +187,13 @@ async function selectProject(id){
     generationStatus.textContent="Generation failed";
     output.textContent=p.current_step||"Generation failed";
   }
+}
+
+async function readJsonOrText(res){
+  const text=await res.text();
+  if(!text)return {};
+  try{return JSON.parse(text);}
+  catch{return {message:text.slice(0,500)};}
 }
 
 function setProgress(value,label){
