@@ -31,11 +31,11 @@
 <main>
 <section class="hero">
   <div class="hero-copy">
-    <div class="badge">AI-Powered Video Creation for Creators</div>
-    <h1>Turn Your Ideas Into<br><span>Viral Content</span> with AI</h1>
-    <p class="sub">AutoStreamAI helps creators automatically edit, caption, and format videos for YouTube, Instagram, TikTok, LinkedIn and more. Save time. Grow faster. Focus on what you do best — create.</p>
+    <div class="badge">AI-Powered Text & Image to Video</div>
+    <h1>Create Videos From<br><span>Words & Images</span> with AI</h1>
+    <p class="sub">Describe the video you want, optionally add a reference image, choose the duration and format, and let AI generate the video for you.</p>
     <div class="hero-actions">
-      <a class="primary large" href="/?view=workflow" target="_blank" rel="noopener">Start Creating <b>→</b></a>
+      <a class="primary large" href="/?view=workflow" target="_blank" rel="noopener">Create a Video <b>→</b></a>
       <a class="secondary large" href="#how-it-works">Watch Demo <b>▷</b></a>
     </div>
     <div class="platform-row">
@@ -77,32 +77,63 @@
 <section id="features" class="section feature-section">
   <div class="section-kicker">WHY AUTOSTREAMAI</div><h2>Everything You Need to Grow</h2><p class="section-sub">Powerful AI tools designed for modern creators</p>
   <div class="feature-grid">
-    <article><div class="icon">ϟ</div><h3>AI Video Editing</h3><p>Automatically find the best moments and create engaging clips.</p></article>
-    <article><div class="icon">CC</div><h3>Smart Captions</h3><p>Accurate, stylish captions for better reach and engagement.</p></article>
-    <article><div class="icon">▣</div><h3>Multi-Platform</h3><p>Optimized formats for YouTube, Instagram, TikTok, LinkedIn and more.</p></article>
-    <article><div class="icon">◷</div><h3>Save Time</h3><p>Go from raw video to ready-to-post in minutes.</p></article>
-    <article><div class="icon blue">▥</div><h3>Grow Faster</h3><p>Create more content, reach more people, and grow your audience.</p></article>
+    <article><div class="icon">ϟ</div><h3>Text & Image to Video</h3><p>Generate original video scenes directly from a prompt or reference image.</p></article>
+    <article><div class="icon">CC</div><h3>Reference Images</h3><p>Animate your image with a motion prompt while preserving the visual direction.</p></article>
+    <article><div class="icon">▣</div><h3>Custom Duration</h3><p>Choose the generation length supported by the selected AI model.</p></article>
+    <article><div class="icon">◷</div><h3>Multiple Aspect Ratios</h3><p>Create landscape, portrait, or square videos.</p></article>
+    <article><div class="icon blue">▥</div><h3>AI Generated Audio</h3><p>Generate synchronized sound when supported by the video model.</p></article>
   </div>
 </section>
 
 <section id="how-it-works" class="section workflow-teaser">
-  <div><div class="section-kicker">HOW IT WORKS</div><h2>From raw footage to ready-to-post</h2><p class="section-sub">One workflow handles transcription, highlight selection, captions, formatting and MP4 export.</p></div>
-  <div class="workflow-steps"><div><b>01</b><strong>Upload</strong><span>Your source video</span></div><div><b>02</b><strong>Analyze</strong><span>Whisper + GPT-OSS</span></div><div><b>03</b><strong>Create</strong><span>Captions + framing</span></div><div><b>04</b><strong>Export</strong><span>Platform-ready MP4</span></div></div>
+  <div><div class="section-kicker">HOW IT WORKS</div><h2>From idea to generated video</h2><p class="section-sub">One simple workflow handles your prompt, optional image, AI generation and MP4 delivery.</p></div>
+  <div class="workflow-steps"><div><b>01</b><strong>Describe</strong><span>Write your idea</span></div><div><b>02</b><strong>Reference</strong><span>Add an image if needed</span></div><div><b>03</b><strong>Generate</strong><span>AI creates the video</span></div><div><b>04</b><strong>Download</strong><span>Get your MP4</span></div></div>
 </section>
 
 <section id="workflow" class="workspace">
-  <div class="section-head"><div><p class="eyebrow">CREATOR WORKSPACE</p><h2>Build your next video</h2></div><span id="project-status">No project yet</span></div>
-  <div class="workspace-grid">
-    <form id="project-form" class="panel"><h3>1. Project setup</h3><label>Project name<input id="project-name" required placeholder="My podcast clip"></label><label>Publish platform<select id="platform"><option>YouTube</option><option>Instagram</option><option>TikTok</option><option>LinkedIn</option><option>Twitter/X</option></select></label><label>Editing style<select id="style"><option>Auto highlights</option><option>Short-form viral</option><option>Clean professional</option><option>Podcast clips</option></select></label><button class="primary full" type="submit">Create project</button></form>
-    <div class="panel"><h3>2. Upload source video</h3><label class="drop"><input id="video-file" type="file" accept="video/*"><strong>Choose a video</strong><span>MP4, MOV, MKV, WEBM, AVI, M4V</span></label><button id="upload-btn" class="secondary full" disabled>Upload video</button><div id="file-info" class="file-info">No video selected</div></div>
-    <div class="panel pipeline-panel"><h3>3. AI processing</h3><div class="progress"><i id="progress-bar"></i></div><div class="progress-meta"><span id="progress-label">Waiting for upload</span><b id="progress-value">0%</b></div><button id="process-btn" class="primary full" disabled>Run AI pipeline</button><div id="output" class="output"></div></div>
+  <div class="section-head">
+    <div><p class="eyebrow">AI VIDEO STUDIO</p><h2>Create a video</h2><p class="section-sub">Turn a prompt or reference image into a generated MP4.</p></div>
+    <span id="project-status">Ready</span>
   </div>
-  <div class="recent panel"><div class="section-head compact"><h3>Recent projects</h3><button id="refresh-projects">Refresh</button></div><div id="projects-list" class="projects-list"></div></div>
+  <div class="generator-layout">
+    <div class="panel generator-form">
+      <label>What should the video show?
+        <textarea id="video-prompt" rows="7" maxlength="5000" placeholder="A cinematic drone shot flying over a futuristic city at sunset, glowing neon streets, atmospheric fog, smooth camera movement..."></textarea>
+      </label>
+      <div class="form-grid">
+        <label>Duration
+          <select id="duration"><option value="4">4 seconds</option><option value="5" selected>5 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select>
+        </label>
+        <label>Aspect ratio
+          <select id="aspect-ratio"><option value="16:9">16:9 Landscape</option><option value="9:16">9:16 Portrait</option><option value="1:1">1:1 Square</option><option value="4:3">4:3</option><option value="3:4">3:4</option><option value="21:9">21:9 Cinematic</option></select>
+        </label>
+      </div>
+      <label>Style
+        <select id="video-style"><option>Cinematic</option><option>Photorealistic</option><option>Commercial</option><option>Anime</option><option>3D Animation</option><option>Documentary</option><option>Fantasy</option></select>
+      </label>
+      <label class="image-drop">
+        <input id="image-file" type="file" accept="image/jpeg,image/png,image/webp">
+        <strong id="image-label">+ Add reference image (optional)</strong>
+        <span>JPG, PNG or WEBP</span>
+      </label>
+      <button id="generate-btn" class="primary full">Generate Video</button>
+      <div class="generator-note">Powered by an external AI video model. Generation time depends on duration and model availability.</div>
+    </div>
+    <div class="panel generation-preview">
+      <div class="preview-head"><h3>Preview</h3><span id="generation-status">Waiting for your prompt</span></div>
+      <div class="video-preview" id="video-preview">
+        <div class="preview-placeholder"><div>✦</div><strong>Your generated video will appear here</strong><span>Enter a prompt to get started</span></div>
+      </div>
+      <div class="generation-progress"><div class="progress"><i id="progress-bar"></i></div><div class="progress-meta"><span id="progress-label">Ready</span><b id="progress-value">0%</b></div></div>
+      <div id="output" class="output"></div>
+    </div>
+  </div>
+  <div class="recent panel"><div class="section-head compact"><h3>Recent generations</h3><button id="refresh-projects">Refresh</button></div><div id="projects-list" class="projects-list"></div></div>
 </section>
 
 <section id="pricing" class="section pricing"><div class="section-kicker">PRICING</div><h2>Start creating with AI</h2><p class="section-sub">Use the creator workspace to turn your footage into finished platform-ready videos.</p><a class="primary large" href="/?view=workflow" target="_blank" rel="noopener">Create Your First Project →</a></section>
 
-<section id="chat" class="chat-section"><div><p class="eyebrow">MEET NOVA</p><h2>Your AI copilot for AutoStreamAI</h2><p>Ask about plans, features, or getting started.</p></div><div class="chat-card"><div class="chat-head"><div class="status-dot"></div><div><strong>Nova</strong><small>AutoStream AI Sales Agent</small></div></div><div id="messages" class="messages"><div class="bubble bot">Hi! I'm Nova. Ask me about AutoStreamAI, pricing, features, or getting started.</div></div><form id="chat-form" class="chat-form"><input id="message" autocomplete="off" placeholder="Ask Nova anything..." maxlength="2000" required><button>Send</button></form><div id="meta" class="chat-meta">Knowledge-grounded AI assistant</div></div></section>
+<section id="chat" class="chat-section"><div><p class="eyebrow">MEET NOVA</p><h2>Your AI copilot for AutoStreamAI</h2><p>Ask Nova about AutoStreamAI and the new AI video generation workflow.</p></div><div class="chat-card"><div class="chat-head"><div class="status-dot"></div><div><strong>Nova</strong><small>AutoStream AI Sales Agent</small></div></div><div id="messages" class="messages"><div class="bubble bot">Hi! I'm Nova. Ask me about AutoStreamAI, pricing, features, or getting started.</div></div><form id="chat-form" class="chat-form"><input id="message" autocomplete="off" placeholder="Ask Nova anything..." maxlength="2000" required><button>Send</button></form><div id="meta" class="chat-meta">Knowledge-grounded AI assistant</div></div></section>
 </main>
 <script src="/static/app.js"></script>
 <script>const view=new URLSearchParams(location.search).get("view");if(view){requestAnimationFrame(()=>document.getElementById(view)?.scrollIntoView({behavior:"smooth",block:"start"}))}</script>
