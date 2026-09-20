@@ -153,6 +153,8 @@ async def projects_image(project_id: int, file: UploadFile = File(...)):
         raise HTTPException(status_code=404, detail="Project not found")
     if not file.filename:
         raise HTTPException(status_code=400, detail="An image is required")
+    if file.size and file.size > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Reference image must be 10 MB or smaller.")
     suffix = Path(file.filename).suffix.lower()
     if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
         raise HTTPException(status_code=400, detail="Use JPG, PNG, or WEBP.")
@@ -204,9 +206,14 @@ def _generate_with_higgsfield(project: dict, image_url: str | None):
 
     print(f"[generation] submitting {model}", flush=True)
     result = higgsfield_client.subscribe(model, arguments=arguments)
-    if not result or "video" not in result or not result["video"].get("url"):
+    video = result.get("video") if isinstance(result, dict) else None
+    if isinstance(video, dict):
+        url = video.get("url")
+    else:
+        url = video
+    if not url:
         raise RuntimeError(f"Higgsfield returned no video result: {str(result)[:500]}")
-    return result["video"]["url"]
+    return url
 
 
 async def _download_video(url: str, destination: Path):
@@ -296,12 +303,15 @@ def projects_output(project_id: int):
         raise HTTPException(status_code=404, detail="Generated video is not ready")
     if supabase_client:
         try:
-            data = supabase_client.storage.from_(STORAGE_BUCKET).download(project["output_filename"])
-            return StreamingResponse(
-                iter([data]),
-                media_type="video/mp4",
-                headers={"Content-Disposition": f'attachment; filename="autostream_{project_id}.mp4"'},
-            )
+            signed = supabase_client.storage.from_(STORAGE_BUCKET).create_signed_url(project["output_filename"], 3600)
+            if isinstance(signed, dict):
+                url = signed.get("signedURL") or signed.get("signedUrl") or signed.get("signed_url")
+            else:
+                url = getattr(signed, "signed_url", None) or getattr(signed, "signedURL", None)
+            if not url:
+                raise RuntimeError("No signed URL returned")
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=url, status_code=307)
         except Exception:
             raise HTTPException(status_code=404, detail="Generated video is missing from storage")
     output = UPLOAD_DIR / project["output_filename"]
