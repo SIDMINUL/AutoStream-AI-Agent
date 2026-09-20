@@ -21,6 +21,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "autostream-videos")
 HF_KEY = os.getenv("HF_KEY")
+HF_API_KEY_ID = os.getenv("HF_API_KEY_ID")
+HF_API_KEY_SECRET = os.getenv("HF_API_KEY_SECRET")
 HF_API_KEY = os.getenv("HF_API_KEY")
 HF_API_SECRET = os.getenv("HF_API_SECRET")
 supabase_client = None
@@ -132,9 +134,13 @@ def projects_get(project_id: int):
 def _hf_credentials():
     if HF_KEY:
         return HF_KEY
+    if HF_API_KEY_ID and HF_API_KEY_SECRET:
+        return f"{HF_API_KEY_ID}:{HF_API_KEY_SECRET}"
     if HF_API_KEY and HF_API_SECRET:
         return f"{HF_API_KEY}:{HF_API_SECRET}"
-    raise RuntimeError("Higgsfield credentials are not configured. Add HF_KEY or HF_API_KEY + HF_API_SECRET.")
+    raise RuntimeError(
+        "Higgsfield credentials are not configured. Add HF_API_KEY_ID + HF_API_KEY_SECRET."
+    )
 
 
 def _signed_image_url(storage_path: str) -> str:
@@ -191,6 +197,18 @@ async def projects_image(project_id: int, file: UploadFile = File(...)):
 
 def _generate_with_higgsfield(project: dict, image_url: str | None):
     import higgsfield_client
+
+    # Support the current Higgsfield Key ID / Key Secret environment names.
+    # The SDK reads HF_API_KEY and HF_API_SECRET, so map the current names
+    # immediately before invoking it.
+    if HF_API_KEY_ID and HF_API_KEY_SECRET:
+        os.environ["HF_API_KEY"] = HF_API_KEY_ID
+        os.environ["HF_API_SECRET"] = HF_API_KEY_SECRET
+    elif HF_KEY:
+        os.environ["HF_KEY"] = HF_KEY
+    elif HF_API_KEY and HF_API_SECRET:
+        os.environ["HF_API_KEY"] = HF_API_KEY
+        os.environ["HF_API_SECRET"] = HF_API_SECRET
 
     model = "bytedance/seedance-2.5/image-to-video" if image_url else "bytedance/seedance-2.5/text-to-video"
     arguments = {
