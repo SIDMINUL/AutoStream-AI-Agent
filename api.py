@@ -2,182 +2,309 @@ import os
 import uuid
 import asyncio
 import shutil
-import subprocess
 import tempfile
-import time
 from pathlib import Path
+
+import httpx
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
 from agent import initial_state, process_turn
-from db import analytics, create_project, get_project, get_session, init_db, list_leads, list_projects, save_session, update_lead_status, update_project
-from video_pipeline import process_video
+from db import (
+    analytics, create_project, get_project, get_session, init_db, list_leads,
+    list_projects, save_session, update_lead_status, update_project,
+)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "autostream-videos")
+HF_KEY = os.getenv("HF_KEY")
+HF_API_KEY = os.getenv("HF_API_KEY")
+HF_API_SECRET = os.getenv("HF_API_SECRET")
 supabase_client = None
+
 if SUPABASE_URL and SUPABASE_KEY:
     from supabase import create_client
     supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def _storage_upload(local_path: str, object_path: str, content_type: str):
-    if not supabase_client:
-        return None
-    # Pass the file handle directly to Supabase instead of reading the whole
-    # video into RAM. Render's instance has only 512 MB available.
-    with open(local_path, "rb") as handle:
-        supabase_client.storage.from_(STORAGE_BUCKET).upload(
-            object_path, handle, {"content-type": content_type, "upsert": "true"}
-        )
-    return object_path
+app = FastAPI(title="AutoStream AI Video Generator API", version="5.0.0")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
-def _storage_download(object_path: str):
-    if not supabase_client:
-        return None
-    return supabase_client.storage.from_(STORAGE_BUCKET).download(object_path)
-
-
-init_db()
-app=FastAPI(title="AutoStream AI Creator Platform API",version="4.0.0")
-app.mount("/static",StaticFiles(directory="static"),name="static")
-UPLOAD_DIR=Path("uploads"); UPLOAD_DIR.mkdir(exist_ok=True)
 
 class ChatRequest(BaseModel):
-    message:str=Field(...,min_length=1,max_length=2000)
-    session_id:str|None=None
+    message: str = Field(..., min_length=1, max_length=2000)
+    session_id: str | None = None
+
+
 class LeadStatusUpdate(BaseModel):
-    status:str
+    status: str
+
+
 class ProjectCreate(BaseModel):
-    name:str=Field(...,min_length=1,max_length=120)
-    platform:str=Field(...,min_length=1,max_length=40)
-    style:str=Field(...,min_length=1,max_length=60)
+    name: str = Field(default="AI Video", min_length=1, max_length=120)
+    prompt: str = Field(..., min_length=3, max_length=5000)
+    duration: int = Field(default=5, ge=4, le=30)
+    aspect_ratio: str = Field(default="16:9", pattern=r"^(16:9|9:16|1:1|4:3|3:4|21:9)$")
+    style: str = Field(default="Cinematic", max_length=60)
+
 
 @app.get("/")
-def root(): return FileResponse("static/index.html")
+def root():
+    return FileResponse("static/index.html")
+
+
 @app.get("/admin")
-def admin(): return FileResponse("static/admin.html")
+def admin():
+    return FileResponse("static/admin.html")
+
+
 @app.get("/health")
-def health(): return {"status":"ok","service":"autostream-ai-platform","version":"4.0.0"}
+def health():
+    return {"status": "ok", "service": "autostream-ai-video-generator", "version": "5.0.0"}
+
 
 @app.post("/chat")
-def chat(request:ChatRequest):
-    session_id=uuid.uuid4().hex
-    state=get_session(session_id) or initial_state()
-    reply,state=process_turn(request.message.strip(),state,session_id); save_session(session_id,state)
-    return {"session_id":session_id,"reply":reply,"intent":state.get("intent"),"lead_captured":state.get("lead_captured",False)}
+def chat(request: ChatRequest):
+    session_id = request.session_id or uuid.uuid4().hex
+    state = get_session(session_id) or initial_state()
+    reply, state = process_turn(request.message.strip(), state, session_id)
+    save_session(session_id, state)
+    return {
+        "session_id": session_id,
+        "reply": reply,
+        "intent": state.get("intent"),
+        "lead_captured": state.get("lead_captured", False),
+    }
+
 
 @app.get("/api/leads")
-def leads(status:str|None=None): return list_leads(status)
+def leads(status: str | None = None):
+    return list_leads(status)
+
+
 @app.patch("/api/leads/{lead_id}")
-def change_lead_status(lead_id:int,request:LeadStatusUpdate):
-    try: updated=update_lead_status(lead_id,request.status)
-    except ValueError as exc: raise HTTPException(status_code=400,detail=str(exc))
-    if not updated: raise HTTPException(status_code=404,detail="Lead not found")
-    return {"status":"updated","lead_id":lead_id,"new_status":request.status}
+def change_lead_status(lead_id: int, request: LeadStatusUpdate):
+    try:
+        updated = update_lead_status(lead_id, request.status)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return {"status": "updated", "lead_id": lead_id, "new_status": request.status}
+
+
 @app.get("/api/analytics")
-def get_analytics(): return analytics()
+def get_analytics():
+    return analytics()
+
 
 @app.post("/api/projects")
-def projects_create(request:ProjectCreate):
-    session_id=uuid.uuid4().hex
-    return create_project(session_id,request.name.strip(),request.platform,request.style)
+def projects_create(request: ProjectCreate):
+    session_id = uuid.uuid4().hex
+    return create_project(
+        session_id,
+        request.name.strip(),
+        "AI Video",
+        request.style.strip(),
+        request.prompt.strip(),
+        request.duration,
+        request.aspect_ratio,
+    )
+
+
 @app.get("/api/projects")
-def projects_list(session_id:str|None=None): return list_projects(session_id)
+def projects_list():
+    return list_projects()
+
+
 @app.get("/api/projects/{project_id}")
-def projects_get(project_id:int):
-    project=get_project(project_id)
-    if not project: raise HTTPException(status_code=404,detail="Project not found")
+def projects_get(project_id: int):
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
     return project
 
-@app.post("/api/projects/{project_id}/upload")
-async def projects_upload(project_id:int,file:UploadFile=File(...)):
-    project=get_project(project_id)
-    if not project: raise HTTPException(status_code=404,detail="Project not found")
-    if not file.filename: raise HTTPException(status_code=400,detail="A video file is required")
-    suffix=Path(file.filename).suffix.lower()
-    if suffix not in {".mp4",".mov",".mkv",".webm",".avi",".m4v"}: raise HTTPException(status_code=400,detail="Use MP4, MOV, MKV, WEBM, AVI, or M4V")
-    destination=UPLOAD_DIR/f"{project_id}_{uuid.uuid4().hex}{suffix}"; size=0
-    with destination.open("wb") as output:
-        while chunk:=await file.read(1024*1024):
-            size+=len(chunk); output.write(chunk)
-    storage_path = None
-    if supabase_client:
-        storage_path = _storage_upload(str(destination), f"projects/{project_id}/source{suffix}", file.content_type or "video/mp4")
-        destination.unlink(missing_ok=True)
-    return update_project(project_id,source_filename=file.filename,source_path=storage_path or str(destination),source_size=size,status="uploaded",progress=10,current_step="Video uploaded")
 
-async def _run_processing(project_id:int):
-    project=get_project(project_id)
-    if not project: return
-    source=project.get("source_path")
-    output=UPLOAD_DIR/f"autostream_project_{project_id}.mp4"
-    if supabase_client and source:
-        try:
-            local_source = UPLOAD_DIR/f"processing_{project_id}_{uuid.uuid4().hex}.mp4"
-            local_source.write_bytes(_storage_download(source))
-            source = str(local_source)
-        except Exception:
-            update_project(project_id,status="failed",progress=0,current_step="Source video could not be downloaded from storage")
-            return
-    if not source or not Path(source).exists():
-        update_project(project_id,status="failed",progress=0,current_step="Source video is missing")
+def _hf_credentials():
+    if HF_KEY:
+        return HF_KEY
+    if HF_API_KEY and HF_API_SECRET:
+        return f"{HF_API_KEY}:{HF_API_SECRET}"
+    raise RuntimeError("Higgsfield credentials are not configured. Add HF_KEY or HF_API_KEY + HF_API_SECRET.")
+
+
+def _signed_image_url(storage_path: str) -> str:
+    if not supabase_client:
+        raise RuntimeError("Supabase storage is required for image-to-video generation.")
+    result = supabase_client.storage.from_(STORAGE_BUCKET).create_signed_url(storage_path, 3600)
+    if isinstance(result, dict):
+        return result.get("signedURL") or result.get("signedUrl") or result.get("signed_url")
+    return getattr(result, "signed_url", None) or getattr(result, "signedURL", None)
+
+
+@app.post("/api/projects/{project_id}/image")
+async def projects_image(project_id: int, file: UploadFile = File(...)):
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="An image is required")
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
+        raise HTTPException(status_code=400, detail="Use JPG, PNG, or WEBP.")
+    destination = UPLOAD_DIR / f"{project_id}_{uuid.uuid4().hex}{suffix}"
+    with destination.open("wb") as output:
+        while chunk := await file.read(1024 * 1024):
+            output.write(chunk)
+
+    if not supabase_client:
+        return update_project(
+            project_id,
+            source_filename=file.filename,
+            source_path=str(destination),
+            source_size=destination.stat().st_size,
+        )
+
+    storage_path = f"projects/{project_id}/input{suffix}"
+    try:
+        with destination.open("rb") as handle:
+            supabase_client.storage.from_(STORAGE_BUCKET).upload(
+                storage_path, handle, {"content-type": file.content_type or "image/jpeg", "upsert": "true"}
+            )
+        destination.unlink(missing_ok=True)
+        return update_project(
+            project_id,
+            source_filename=file.filename,
+            source_path=storage_path,
+            source_size=0,
+        )
+    except Exception as exc:
+        destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Image upload failed: {str(exc)[:180]}")
+
+
+def _generate_with_higgsfield(project: dict, image_url: str | None):
+    import higgsfield_client
+
+    model = "bytedance/seedance-2.5/image-to-video" if image_url else "bytedance/seedance-2.5/text-to-video"
+    arguments = {
+        "prompt": project["prompt"],
+        "duration": int(project["duration"]),
+        "resolution": "720p",
+        "aspect_ratio": project["aspect_ratio"],
+        "output_format": "mp4",
+        "generate_audio": True,
+    }
+    if image_url:
+        arguments["image_url"] = image_url
+
+    print(f"[generation] submitting {model}", flush=True)
+    result = higgsfield_client.subscribe(model, arguments=arguments)
+    if not result or "video" not in result or not result["video"].get("url"):
+        raise RuntimeError(f"Higgsfield returned no video result: {str(result)[:500]}")
+    return result["video"]["url"]
+
+
+async def _download_video(url: str, destination: Path):
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=30.0), follow_redirects=True) as client:
+        async with client.stream("GET", url) as response:
+            response.raise_for_status()
+            with destination.open("wb") as output:
+                async for chunk in response.aiter_bytes(1024 * 1024):
+                    output.write(chunk)
+
+
+async def _run_generation(project_id: int):
+    project = get_project(project_id)
+    if not project:
         return
 
     try:
-        update_project(project_id,status="processing",progress=20,current_step="Analyzing video")
-        time.sleep(.2)
+        update_project(project_id, status="processing", progress=10, current_step="Preparing generation")
+        image_url = None
+        if project.get("source_path"):
+            image_url = _signed_image_url(project["source_path"])
+            if not image_url:
+                raise RuntimeError("Could not create a temporary image URL.")
 
-        with tempfile.TemporaryDirectory(prefix=f"autostream_{project_id}_") as work_dir:
-            update_project(project_id,progress=25,current_step="Extracting audio")
-            await asyncio.to_thread(_ensure_ffmpeg)
-            update_project(project_id,progress=35,current_step="Transcribing speech with Whisper")
-            await asyncio.to_thread(
-                process_video,
-                source,
-                str(output),
-                project.get("platform") or "YouTube",
-                work_dir,
-            )
-            update_project(project_id,progress=60,current_step="Applying AI captions and highlight")
-            await asyncio.sleep(.1)
-            update_project(project_id,progress=80,current_step="Formatting for platform")
-            await asyncio.sleep(.1)
-            update_project(project_id,progress=95,current_step="Finalizing MP4")
+        update_project(project_id, progress=20, current_step="Sending prompt to AI video model")
+        image_mode = "image-to-video" if image_url else "text-to-video"
+        update_project(project_id, progress=30, current_step=f"Generating {image_mode}")
+        video_url = await asyncio.to_thread(_generate_with_higgsfield, project, image_url)
+
+        update_project(project_id, progress=85, current_step="Saving generated video")
+        local_output = UPLOAD_DIR / f"generated_{project_id}_{uuid.uuid4().hex}.mp4"
+        await _download_video(video_url, local_output)
 
         if supabase_client:
-            output_path = _storage_upload(str(output), f"projects/{project_id}/output.mp4", "video/mp4")
-            output.unlink(missing_ok=True)
-            update_project(project_id,status="completed",progress=100,current_step="AI export complete",output_filename=output_path)
+            output_path = f"projects/{project_id}/output.mp4"
+            with local_output.open("rb") as handle:
+                supabase_client.storage.from_(STORAGE_BUCKET).upload(
+                    output_path, handle, {"content-type": "video/mp4", "upsert": "true"}
+                )
+            local_output.unlink(missing_ok=True)
+            update_project(
+                project_id,
+                status="completed",
+                progress=100,
+                current_step="Video generated successfully",
+                output_filename=output_path,
+            )
         else:
-            update_project(project_id,status="completed",progress=100,current_step="AI export complete",output_filename=output.name)
+            update_project(
+                project_id,
+                status="completed",
+                progress=100,
+                current_step="Video generated successfully",
+                output_filename=local_output.name,
+            )
     except Exception as exc:
-        update_project(project_id,status="failed",progress=0,current_step=f"Processing failed: {str(exc)[:180]}")
+        print(f"[generation] failed: {exc}", flush=True)
+        update_project(
+            project_id,
+            status="failed",
+            progress=0,
+            current_step=f"Generation failed: {str(exc)[:220]}",
+        )
 
-def _ensure_ffmpeg():
-    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
-        raise RuntimeError("FFmpeg and ffprobe are required for AI video processing.")
 
-@app.post("/api/projects/{project_id}/process")
-async def projects_process(project_id:int,background_tasks:BackgroundTasks):
-    project=get_project(project_id)
-    if not project: raise HTTPException(status_code=404,detail="Project not found")
-    if not project.get("source_filename"): raise HTTPException(status_code=400,detail="Upload a video before processing")
-    if project["status"]=="processing": return project
-    background_tasks.add_task(_run_processing,project_id)
-    return update_project(project_id,status="queued",progress=15,current_step="AI pipeline queued")
+@app.post("/api/projects/{project_id}/generate")
+async def projects_generate(project_id: int, background_tasks: BackgroundTasks):
+    project = get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not project.get("prompt"):
+        raise HTTPException(status_code=400, detail="Enter a video prompt first.")
+    if project.get("status") == "processing":
+        return project
+    try:
+        _hf_credentials()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    background_tasks.add_task(_run_generation, project_id)
+    return update_project(project_id, status="queued", progress=5, current_step="Generation queued")
+
 
 @app.get("/api/projects/{project_id}/output")
-def projects_output(project_id:int):
-    project=get_project(project_id)
-    if not project or project["status"]!="completed": raise HTTPException(status_code=404,detail="Processed output is not ready")
+def projects_output(project_id: int):
+    project = get_project(project_id)
+    if not project or project["status"] != "completed":
+        raise HTTPException(status_code=404, detail="Generated video is not ready")
     if supabase_client:
         try:
-            data = _storage_download(project["output_filename"])
-            return StreamingResponse(iter([data]), media_type="video/mp4", headers={"Content-Disposition": f'attachment; filename="autostream_project_{project_id}.mp4"'})
+            data = supabase_client.storage.from_(STORAGE_BUCKET).download(project["output_filename"])
+            return StreamingResponse(
+                iter([data]),
+                media_type="video/mp4",
+                headers={"Content-Disposition": f'attachment; filename="autostream_{project_id}.mp4"'},
+            )
         except Exception:
-            raise HTTPException(status_code=404,detail="Output file is missing from storage")
-    output=UPLOAD_DIR/project["output_filename"]
-    if not output.exists(): raise HTTPException(status_code=404,detail="Output file is missing")
-    return FileResponse(output,filename=output.name,media_type="video/mp4")
+            raise HTTPException(status_code=404, detail="Generated video is missing from storage")
+    output = UPLOAD_DIR / project["output_filename"]
+    if not output.exists():
+        raise HTTPException(status_code=404, detail="Generated video is missing")
+    return FileResponse(output, filename=output.name, media_type="video/mp4")
