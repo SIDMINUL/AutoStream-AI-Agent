@@ -21,3 +21,5 @@ python-multipart>=0.0.9
 psycopg[binary]>=3.2.0
 
 supabase>=2.18.0
+
+higgsfield-client>=0.2.0
