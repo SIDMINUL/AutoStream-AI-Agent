@@ -179,3 +179,6 @@ def analytics():
     platforms=conn.execute("SELECT platform,COUNT(*) AS count FROM leads GROUP BY platform ORDER BY count DESC").fetchall()
     conn.close()
     return {"total_leads":total,"qualified_leads":qualified,"converted_leads":converted,"active_sessions":sessions,"projects":projects,"completed_projects":completed,"conversion_rate":round(converted/total*100,1) if total else 0,"pipeline":[dict(r) for r in statuses],"platforms":[dict(r) for r in platforms]}
+
+# Initialize the database schema when the application starts.
+init_db()
