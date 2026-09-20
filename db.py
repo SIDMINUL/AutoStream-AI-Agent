@@ -51,6 +51,10 @@ def init_db():
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL
         );
         """)
+        conn.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS prompt TEXT")
+        conn.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS duration INTEGER DEFAULT 5")
+        conn.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS aspect_ratio TEXT DEFAULT '16:9'")
+        conn.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS provider_job_id TEXT")
     else:
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS sessions (
