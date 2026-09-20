@@ -44,8 +44,10 @@ def init_db():
             id SERIAL PRIMARY KEY,
             session_id TEXT, name TEXT NOT NULL, platform TEXT NOT NULL, style TEXT NOT NULL,
             source_filename TEXT, source_path TEXT, source_size BIGINT DEFAULT 0,
+            prompt TEXT, duration INTEGER DEFAULT 5, aspect_ratio TEXT DEFAULT '16:9',
+            provider_job_id TEXT,
             status TEXT DEFAULT 'draft', progress INTEGER DEFAULT 0,
-            current_step TEXT DEFAULT 'Ready to upload', output_filename TEXT,
+            current_step TEXT DEFAULT 'Ready to create', output_filename TEXT,
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL
         );
         """)
@@ -67,14 +69,24 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT, name TEXT NOT NULL, platform TEXT NOT NULL, style TEXT NOT NULL,
             source_filename TEXT, source_path TEXT, source_size INTEGER DEFAULT 0,
+            prompt TEXT, duration INTEGER DEFAULT 5, aspect_ratio TEXT DEFAULT '16:9',
+            provider_job_id TEXT,
             status TEXT DEFAULT 'draft', progress INTEGER DEFAULT 0,
-            current_step TEXT DEFAULT 'Ready to upload', output_filename TEXT,
+            current_step TEXT DEFAULT 'Ready to create', output_filename TEXT,
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL
         );
         """)
         columns = {row[1] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
         if "source_path" not in columns:
             conn.execute("ALTER TABLE projects ADD COLUMN source_path TEXT")
+        if "prompt" not in columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN prompt TEXT")
+        if "duration" not in columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN duration INTEGER DEFAULT 5")
+        if "aspect_ratio" not in columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN aspect_ratio TEXT DEFAULT '16:9'")
+        if "provider_job_id" not in columns:
+            conn.execute("ALTER TABLE projects ADD COLUMN provider_job_id TEXT")
     conn.commit()
     conn.close()
 
@@ -124,11 +136,11 @@ def update_lead_status(lead_id: int, status: str):
     cursor = conn.execute(_sql("UPDATE leads SET status=%s,updated_at=%s WHERE id=%s"), (status, utc_now(), lead_id))
     conn.commit(); conn.close(); return cursor.rowcount > 0
 
-def create_project(session_id: str, name: str, platform: str, style: str):
+def create_project(session_id: str, name: str, platform: str, style: str, prompt: str = "", duration: int = 5, aspect_ratio: str = "16:9"):
     now = utc_now(); conn = _connect()
     cursor = conn.execute(
-        _sql("INSERT INTO projects(session_id,name,platform,style,status,progress,current_step,created_at,updated_at) VALUES (%s,%s,%s,%s,'draft',0,'Ready to upload',%s,%s)"),
-        (session_id, name, platform, style, now, now),
+        _sql("INSERT INTO projects(session_id,name,platform,style,prompt,duration,aspect_ratio,status,progress,current_step,created_at,updated_at) VALUES (%s,%s,%s,%s,%s,%s,%s,'draft',0,'Ready to create',%s,%s)"),
+        (session_id, name, platform, style, prompt, duration, aspect_ratio, now, now),
     )
     conn.commit(); project_id = cursor.lastrowid; conn.close(); return get_project(project_id)
 
@@ -142,7 +154,7 @@ def list_projects(session_id: Optional[str] = None):
     conn.close(); return [dict(row) for row in rows]
 
 def update_project(project_id: int, **fields):
-    allowed = {"source_filename","source_path","source_size","status","progress","current_step","output_filename","platform","style","name"}
+    allowed = {"source_filename","source_path","source_size","prompt","duration","aspect_ratio","provider_job_id","status","progress","current_step","output_filename","platform","style","name"}
     updates = {k:v for k,v in fields.items() if k in allowed}
     if not updates: return get_project(project_id)
     updates["updated_at"] = utc_now()
